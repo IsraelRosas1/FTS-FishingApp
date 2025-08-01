@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "FishFinder AI",
-    "slug": "fishfinder-ai",
+    "name": "FTS-Fishing",
+    "slug": "fts-fishing",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -22,7 +22,7 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "app.rork.fishfinder-ai"
+      "package": "app.rork.fts-fishing"
     },
     "web": {
       "favicon": "./assets/images/favicon.png"

@@ -22,11 +22,11 @@ const MOCK_POSTS: Post[] = [
   {
     id: 'post-1',
     userId: 'user-2',
-    userDisplayName: 'Sarah Waters',
-    userProfileImage: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1374&q=80',
+    userDisplayName: 'Ricky ',
+    userProfileImage: 'https://images.fishbrain.com/6C_V0frY_1JmjctxCCsQFe_egg4PiEj0w3U8jJ8Dc20/rs:fill-down:1680:1680/g:sm/f:webp/plain/s3://fishbrain/7pt3bvslhvb9xeel6ssyhdzvqd49',
     catchId: 'catch-1',
-    caption: 'Beautiful rainbow trout caught in Lake Michigan! #fishing #trout',
-    imageUrl: 'https://images.unsplash.com/photo-1583766395091-2eb9994ed094?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1740&q=80',
+    caption: 'Beautiful Silverfish my dad caught in Lake Michigan! #fishing',
+    imageUrl: 'https://images.unsplash.com/photo-1574781330855-d0db8cc6a79c?q=80&w=2370&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
     likes: 42,
     comments: 5,
     createdAt: '2025-06-10T14:30:00Z',
@@ -34,27 +34,16 @@ const MOCK_POSTS: Post[] = [
   {
     id: 'post-2',
     userId: 'user-3',
-    userDisplayName: 'Mike Rivers',
-    userProfileImage: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1374&q=80',
+    userDisplayName: 'Joe Schmoe',
+    userProfileImage: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQhcFKPS1PQXIiEptbNIMX1vzAHvfyKPUtICoDhlwztrdL2tdiXmcrsiCuSmdYRLqMoMGk&usqp=CAU',
     catchId: 'catch-2',
     caption: 'Caught this massive bass today! Personal best. #bassfishing',
-    imageUrl: 'https://images.unsplash.com/photo-1598111497309-326fa864a213?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1740&q=80',
+    imageUrl: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRL6rAyknLEjVNK0rFbDm0RYeLvzR-VIV3rUw&s',
     likes: 78,
     comments: 12,
     createdAt: '2025-06-11T09:15:00Z',
   },
-  {
-    id: 'post-3',
-    userId: 'user-4',
-    userDisplayName: 'Emma Fisher',
-    userProfileImage: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1361&q=80',
-    catchId: 'catch-3',
-    caption: 'Early morning catch on the pier. The AI identified this as a Yellowtail Snapper!',
-    imageUrl: 'https://images.unsplash.com/photo-1531930961384-9b1e6db3a5d7?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1374&q=80',
-    likes: 56,
-    comments: 8,
-    createdAt: '2025-06-12T07:45:00Z',
-  }
+  
 ];
 
 // Mock comments for demo

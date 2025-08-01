@@ -26,31 +26,14 @@ export default function WelcomeScreen() {
     <View style={styles.container}>
       <View style={styles.content}>
         <Image
-          source={{ uri: 'https://images.unsplash.com/photo-1545370331-9c11c3acc1b5?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2000&q=80' }}
+          source={{ uri: 'https://img1.wsimg.com/isteam/ip/1be5c267-be0b-4756-8f8e-82fbb9471481/blob-b92c89d.png/:/rs=w:622,h:350,cg:true,m/cr=w:622,h:350/qt=q:95' }}
           style={styles.logo}
           resizeMode="cover"
         />
         
-        <Text style={styles.title}>Fish Finder</Text>
-        <Text style={styles.subtitle}>Identify fish with AI and share your catches</Text>
-        
-        <View style={styles.features}>
-          <View style={styles.featureItem}>
-            <Text style={styles.featureText}>• Identify fish species with AI</Text>
-          </View>
-          <View style={styles.featureItem}>
-            <Text style={styles.featureText}>• Share your catches with friends</Text>
-          </View>
-          <View style={styles.featureItem}>
-            <Text style={styles.featureText}>• Learn about different fish species</Text>
-          </View>
-          <View style={styles.featureItem}>
-            <Text style={styles.featureText}>• Track your fishing history</Text>
-          </View>
-          <View style={styles.featureItem}>
-            <Text style={styles.featureText}>• Find nearby fishing spots</Text>
-          </View>
-        </View>
+        <Text style={styles.title}>FTS-Fishing</Text>
+        <Text style={styles.subtitle}>Join our community of From-The-Shore anglers!</Text>
+
       </View>
       
       <View style={styles.buttons}>
@@ -85,9 +68,8 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   logo: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: 220,
+    height: 140,
     marginBottom: 24,
   },
   title: {
