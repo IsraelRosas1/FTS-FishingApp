@@ -59,7 +59,7 @@ export default function SignUpScreen() {
     >
       <View style={styles.formContainer}>
         <Text style={styles.title}>Create Account</Text>
-        <Text style={styles.subtitle}>Join the Fish Finder community</Text>
+        <Text style={styles.subtitle}>Join the FTS-Fishing community</Text>
         
         <View style={styles.inputContainer}>
           <Text style={styles.label}>Username</Text>

@@ -57,61 +57,7 @@ export default function LeaderboardView() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.competitiveHeader}>
-        <Trophy size={24} color={Colors.accent} />
-        <Text style={styles.competitiveTitle}>Monthly Leaderboard</Text>
-        <Text style={styles.competitiveSubtitle}>Compete with other anglers in your area</Text>
-      </View>
-
-      <FlatList
-        data={competitiveData}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <View style={[
-            styles.leaderboardCard,
-            item.username === 'You' && styles.currentUserCard
-          ]}>
-            <View style={styles.rankContainer}>
-              <View style={[
-                styles.rankBadge,
-                item.rank === 1 && styles.goldBadge,
-                item.rank === 2 && styles.silverBadge,
-                item.rank === 3 && styles.bronzeBadge
-              ]}>
-                <Text style={[
-                  styles.rankText,
-                  item.rank <= 3 && styles.medalRankText
-                ]}>#{item.rank}</Text>
-              </View>
-            </View>
-            
-            <View style={styles.userInfo}>
-              <Text style={[
-                styles.username,
-                item.username === 'You' && styles.currentUsername
-              ]}>{item.username}</Text>
-              <Text style={styles.biggestCatch}>{item.biggestCatch}</Text>
-            </View>
-            
-            <View style={styles.statsContainer}>
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{item.score}</Text>
-                <Text style={styles.statLabel}>Score</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{item.fishCount}</Text>
-                <Text style={styles.statLabel}>Fish</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{item.streak}</Text>
-                <Text style={styles.statLabel}>Streak</Text>
-              </View>
-            </View>
-          </View>
-        )}
-        scrollEnabled={false}
-      />
-
+      
       <View style={styles.leaguesSection}>
         <Text style={styles.leaguesHeader}>Leagues FTS Crew</Text>
         
