@@ -18,4 +18,4 @@ C:\FTS-FishingApp: npm install
 
 **To run the app using Expo go app:**
 
-npx expo go 
+npx expo start
