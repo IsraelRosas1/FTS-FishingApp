@@ -6,14 +6,15 @@ This social media app is made for fishermen who want to share their achievements
 
 * Social Media and Competitive social Feed
 * AI Fish Detection through Pictures and Video
-* Real time map updates for nearby waterbodies for specific type of fish.
+* AI Fish Measurement detection (Lenght, Girth, Weight)
+* Real time map updates for nearby waterbodies for specific types of fish.
 * Equipment recommendations for specific types of fish
 * Personal profile for user posts
 * Access to personal fish catchbook
 
 **Run this command to install all dependencies:**
 
-npm install
+C:\FTS-FishingApp: npm install
 
 **To run the app using Expo go app:**
 
