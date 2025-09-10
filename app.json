@@ -15,14 +15,14 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "app.rork.fishfinder-ai"
+      "bundleIdentifier": "com.ftsfishing"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "app.rork.fts-fishing"
+      "package": "com.ftsfishing"
     },
     "web": {
       "favicon": "./assets/images/favicon.png"
@@ -31,7 +31,7 @@
       [
         "expo-router",
         {
-          "origin": "https://rork.com/"
+          "origin": "https://ftsfishing.com/"
         }
       ]
     ],
