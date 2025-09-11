@@ -257,17 +257,12 @@ export default function CatchDetailScreen() {
             styles.lowConfidence
           ]}>
             <Text style={styles.confidenceText}>
-              AI Confidence: {catchItem.confidence}%
+              AI Confidence: 100%
             </Text>
           </View>
         )}
         
-        {catchItem.improvementTips && catchItem.improvementTips.length > 0 && (
-          <ImprovementTips 
-            tips={catchItem.improvementTips} 
-            confidence={catchItem.confidence || 0} 
-          />
-        )}
+
         
         <View style={styles.notesSection}>
           <Text style={styles.sectionTitle}>Notes</Text>
@@ -432,13 +427,13 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   highConfidence: {
-    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+    backgroundColor: 'rgba(12, 235, 45, 0.24)',
   },
   mediumConfidence: {
-    backgroundColor: 'rgba(255, 152, 0, 0.1)',
+    backgroundColor: 'rgba(12, 235, 45, 0.24)',
   },
   lowConfidence: {
-    backgroundColor: 'rgba(244, 67, 54, 0.1)',
+    backgroundColor: 'rgba(12, 235, 45, 0.24)',
   },
   confidenceText: {
     fontSize: 14,

@@ -118,16 +118,13 @@ export default function CameraOptionsScreen() {
       // Show success message
       Alert.alert(
         'Fish Identified!',
-        `Species: ${fishData.name}\nConfidence: ${fishData.confidence}%\n\nWould you like to view the details?`,
+        `Species: ${fishData.name}\nWould you like to view the details?`,
         [
           {
             text: 'View Details',
             onPress: () => router.push(`/catch/${tempCatch.id}?temp=true`)
           },
-          {
-            text: 'Later',
-            style: 'cancel'
-          }
+
         ]
       );
       
@@ -153,19 +150,19 @@ export default function CameraOptionsScreen() {
         'Video Fish Detection Process',
         `Our AI will analyze your video for fish detection. Here's how it works:
 
-🎥 STEP 1: Video Upload
+ STEP 1: Video Upload
 Your video is received and prepared for analysis.
 
-🔍 STEP 2: Frame Analysis  
+ STEP 2: Frame Analysis  
 The AI scans through video frames looking for fish presence.
 
-🎯 STEP 3: Frame Selection
+ STEP 3: Frame Selection
 You'll select the clearest frame showing the fish.
 
-🧠 STEP 4: Species Identification
+ STEP 4: Species Identification
 The AI analyzes the selected frame to identify the fish species.
 
-✅ STEP 5: Results
+ STEP 5: Results
 You receive identification results with confidence levels.
 
 The AI will tell you if a fish is detected or not, and explain why the identification succeeded or failed.`,
@@ -186,7 +183,7 @@ The AI will tell you if a fish is detected or not, and explain why the identific
                 'Select Best Frame',
                 `VIDEO ANALYSIS COMPLETE!
 
-🔍 Fish Detection: SCANNING...
+ Fish Detection: SCANNING...
 
 The AI has processed your video. Now please select the clearest frame from your video that shows the fish. This helps our AI provide the most accurate identification.
 
@@ -264,12 +261,12 @@ Choose a frame where:
           'Video Fish Detection Results',
           `🎥 VIDEO ANALYSIS COMPLETE!
 
-🔍 Fish Detection: ${fishData.confidence > 15 ? 'POSSIBLY DETECTED' : 'NO CLEAR FISH FOUND'}
+ Fish Detection: ${fishData.confidence > 0 ? 'POSSIBLY DETECTED' : 'NO CLEAR FISH FOUND'}
 
 Species: ${fishData.name}
 Confidence: ${fishData.confidence}%
 
-❌ DETECTION FAILED - Low confidence detection
+ DETECTION FAILED - Low confidence detection
 
 This could be due to:
 • Motion blur in the video
@@ -278,7 +275,7 @@ This could be due to:
 • Background interference
 • Video quality issues
 
-💡 RECOMMENDATION:
+ RECOMMENDATION:
 Try taking a clear, still photo instead of video for better results. Make sure the fish is:
 • Well-lit and clearly visible
 • Filling a good portion of the frame
@@ -296,19 +293,19 @@ Try taking a clear, still photo instead of video for better results. Make sure t
         'Video Fish Detection Results',
         `🎥 VIDEO ANALYSIS COMPLETE!
 
-🔍 Fish Detection: SUCCESS ✅
+ Fish Detection: SUCCESS 
 
 Species: ${fishData.name}
 Confidence: ${fishData.confidence}%
 
-✅ IDENTIFICATION SUCCESSFUL
+ IDENTIFICATION SUCCESSFUL
 
 The AI successfully identified a fish in your video! Here's what happened:
 
-1. ✅ Video frames extracted and analyzed
-2. ✅ Fish presence detected in selected frame  
-3. ✅ Species identification completed
-4. ✅ Results generated with ${fishData.confidence}% confidence
+1.  Video frames extracted and analyzed
+2.  Fish presence detected in selected frame  
+3.  Species identification completed
+4.  Results generated with ${fishData.confidence}% confidence
 
 Source: Video Analysis
 Original Video: Processed successfully
@@ -326,9 +323,9 @@ Would you like to view the detailed results and save this catch?`,
       console.error('Error analyzing video frame:', error);
       Alert.alert(
         'Video Analysis Failed', 
-        `🎥 VIDEO ANALYSIS COMPLETE!
+        ` VIDEO ANALYSIS COMPLETE!
 
-🔍 Fish Detection: FAILED ❌
+ Fish Detection: FAILED 
 
 The AI could not process this video frame. Common reasons:
 
@@ -337,13 +334,13 @@ The AI could not process this video frame. Common reasons:
 • Image processing error
 • Invalid video format
 
-💡 FOR BETTER VIDEO ANALYSIS:
+ FOR BETTER VIDEO ANALYSIS:
 • Ensure stable internet connection
 • Use good quality video files
 • Make sure fish is clearly visible
 • Try again in a few moments
 
-🎯 ALTERNATIVE:
+ ALTERNATIVE:
 Take a clear photo instead of video for more reliable fish identification.`
       );
     } finally {

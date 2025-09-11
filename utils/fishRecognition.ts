@@ -24,7 +24,7 @@ export async function recognizeFish(imageBase64: string): Promise<{
     const messages: CoreMessage[] = [
       {
         role: 'system',
-        content: 'You are an expert ichthyologist specializing in fish identification. Analyze the ENTIRE provided fish image carefully and return a JSON object with the following fields: name (common name of the fish), scientificName, description (brief description of the fish), habitat (where this fish typically lives), confidence (a number between 0-100 indicating how confident you are in this identification), and improvementTips (an array of strings with tips for taking better photos if confidence is below 70, otherwise empty array). Examine the full image thoroughly - look at all parts of the photo for fish presence, not just the center. If you cannot identify the fish clearly, provide your best guess and set a lower confidence value with specific reasons why the identification is uncertain.'
+        content: 'You are an expert ichthyologist specializing in fish identification. Analyze the ENTIRE provided fish image carefully and return a JSON object with the following fields: name (common name of the fish), scientificName, description (brief description of the fish), habitat (where this fish typically lives). Examine the full image thoroughly - look at all parts of the photo for fish presence, not just the center.'
       },
       {
         role: 'user',
@@ -102,14 +102,14 @@ export async function analyzeFishInVideoFrame(imageBase64: string): Promise<{
     const messages: CoreMessage[] = [
       {
         role: 'system',
-        content: 'You are an expert in fish identification. Analyze the provided video frame and return a JSON object with only two fields: name (common name of the fish) and confidence (a number between 0-100). Be very concise and respond quickly as this is for real-time video analysis. Examine the entire frame for fish presence.'
+        content: 'You are an expert in fish identification. Analyze the provided video  and return a JSON object with only two fields: name (common name of the fish) and confidence (a number between 0-100). Be very concise and respond quickly as this is for real-time video analysis. Examine the entire frame for fish presence.'
       },
       {
         role: 'user',
         content: [
           { 
             type: 'text', 
-            text: 'Quick identification of fish in this video frame:' 
+            text: 'Quick identification of fish in this video :' 
           },
           { 
             type: 'image', 
