@@ -41,39 +41,30 @@ async function retry<T>(fn: () => Promise<T>, attempts = 2, delayMs = 500): Prom
 
 // Build Overpass QL query for common water features
 function buildOverpassQuery(lat: number, lon: number, radiusMeters: number) {
-  // We search for nodes/ways/relations with water-related tags near the point.
-  // Common tags: natural=water, water=lake/river/pond/reservoir, waterway=river, leisure=reservoir, amenity=marina
-  // We'll request center for ways/relations using 'center' output.
-
-  // Note: Overpass QL uses around:<radius>, so we combine multiple clauses.
   return `
     [out:json][timeout:25];
     (
-      // lakes, ponds, reservoirs and general water polygons
-      node(around:${radiusMeters},${lat},${lon})["natural"="water"];
-      way(around:${radiusMeters},${lat},${lon})["natural"="water"];
-      relation(around:${radiusMeters},${lat},${lon})["natural"="water"];
+      way(around:${radiusMeters},${lat},${lon})
+        ["natural"="water"]
+        ["water"="lake"];
+      relation(around:${radiusMeters},${lat},${lon})
+        ["natural"="water"]
+        ["water"="lake"];
 
-      node(around:${radiusMeters},${lat},${lon})["water"];
-      way(around:${radiusMeters},${lat},${lon})["water"];
-      relation(around:${radiusMeters},${lat},${lon})["water"];
+      way(around:${radiusMeters},${lat},${lon})
+        ["water"="reservoir"];
+      relation(around:${radiusMeters},${lat},${lon})
+        ["water"="reservoir"];
 
-      node(around:${radiusMeters},${lat},${lon})["waterway"];
-      way(around:${radiusMeters},${lat},${lon})["waterway"];
-      relation(around:${radiusMeters},${lat},${lon})["waterway"];
-
-      node(around:${radiusMeters},${lat},${lon})["leisure"="reservoir"];
-      way(around:${radiusMeters},${lat},${lon})["leisure"="reservoir"];
-      relation(around:${radiusMeters},${lat},${lon})["leisure"="reservoir"];
-
-      node(around:${radiusMeters},${lat},${lon})["amenity"="marina"];
-      way(around:${radiusMeters},${lat},${lon})["amenity"="marina"];
-      relation(around:${radiusMeters},${lat},${lon})["amenity"="marina"];
+      way(around:${radiusMeters},${lat},${lon})
+        ["water"="pond"];
+      relation(around:${radiusMeters},${lat},${lon})
+        ["water"="pond"];
     );
-    // return centre for ways/relations so we have coordinates
-    out center tags geom qt;
+    out center tags;
   `;
 }
+
 
 function parseOverpassElement(el: any): WaterFeature | null {
   if (!el || !el.type || !el.id) return null;
@@ -104,6 +95,30 @@ function parseOverpassElement(el: any): WaterFeature | null {
   };
 }
 
+function isFishableLake(feature: WaterFeature): boolean {
+  const t = feature.tags;
+
+  const isLakeLike =
+    t.water === 'lake' ||
+    t.water === 'reservoir' ||
+    t.water === 'pond' ||
+    (t.natural === 'water' && !t.amenity);
+
+  if (!isLakeLike) return false;
+
+  if (
+    t.amenity === 'fountain' ||
+    t.man_made === 'basin' ||
+    t.natural === 'spring'
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
+
+
 /**
  * Search for water features near a location using the Overpass API.
  * @param lat latitude in decimal degrees
@@ -114,7 +129,7 @@ function parseOverpassElement(el: any): WaterFeature | null {
 export async function searchWaterFeatures(
   lat: number,
   lon: number,
-  radiusMeters = 5000,
+  radiusMeters = 5000, 
   overpassUrl = DEFAULT_OVERPASS_URL,
 ): Promise<WaterFeature[]> {
   if (typeof fetch === 'undefined') throw new Error('fetch is not available in this environment');
@@ -154,7 +169,7 @@ export async function searchWaterFeatures(
     results.push(parsed);
   }
 
-  return results;
+  return results.filter(isFishableLake);
 }
 
 export default { searchWaterFeatures };

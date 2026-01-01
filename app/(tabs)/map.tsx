@@ -27,6 +27,7 @@ export default function FishingMapScreen() {
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
   const [showFullScreenMap, setShowFullScreenMap] = useState(false);
   const [selectedSpot, setSelectedSpot] = useState<FishingSpot | null>(null);
+  const [mapRegion, setMapRegion] = useState<any>(null);
 
   useEffect(() => {
     getCurrentLocation();
@@ -54,6 +55,12 @@ export default function FishingMapScreen() {
       const currentLocation = await Location.getCurrentPositionAsync({});
       console.log('Location obtained:', currentLocation.coords);
       setLocation(currentLocation);
+      setMapRegion({
+        latitude: currentLocation.coords.latitude,
+        longitude: currentLocation.coords.longitude,
+        latitudeDelta: 0.5,
+        longitudeDelta: 0.5,
+      });
       
     } catch (error) {
       console.error('Error getting location:', error);
@@ -112,6 +119,15 @@ export default function FishingMapScreen() {
           };
       }).filter((spot): spot is FishingSpot => spot !== null); // Filter out nulls
 
+      // Sort spots: lakes first, then others
+      spots.sort((a, b) => {
+        const aIsLake = a.name.toLowerCase().includes('lake');
+        const bIsLake = b.name.toLowerCase().includes('lake');
+        if (aIsLake && !bIsLake) return -1;
+        if (!aIsLake && bIsLake) return 1;
+        return 0;
+      });
+
       setFishingSpots(spots);
       console.log(`Loaded ${spots.length} fishing spots from Overpass data.`);
 
@@ -151,12 +167,7 @@ export default function FishingMapScreen() {
         <MapView
           style={styles.map}
           provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
-          initialRegion={{
-            latitude: location.coords.latitude,
-            longitude: location.coords.longitude,
-            latitudeDelta: 0.5,
-            longitudeDelta: 0.5,
-          }}
+          region={mapRegion}
           showsUserLocation={true}
           showsMyLocationButton={true}
         >
@@ -248,7 +259,16 @@ export default function FishingMapScreen() {
             <TouchableOpacity 
               key={spot.id} 
               style={styles.spotCard}
-              onPress={() => openInMaps(spot)}
+              onPress={() => {
+                setViewMode('map');
+                setSelectedSpot(spot);
+                setMapRegion({
+                  latitude: spot.coordinates.latitude,
+                  longitude: spot.coordinates.longitude,
+                  latitudeDelta: 0.1,
+                  longitudeDelta: 0.1,
+                });
+              }}
             >
               <View style={styles.spotHeader}>
                 <View>
