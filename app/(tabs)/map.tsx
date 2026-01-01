@@ -58,8 +58,8 @@ export default function FishingMapScreen() {
       setMapRegion({
         latitude: currentLocation.coords.latitude,
         longitude: currentLocation.coords.longitude,
-        latitudeDelta: 0.5,
-        longitudeDelta: 0.5,
+        latitudeDelta: 2.0,
+        longitudeDelta: 2.0,
       });
       
     } catch (error) {
@@ -78,7 +78,7 @@ export default function FishingMapScreen() {
     const lat = location.coords.latitude;
     const lon = location.coords.longitude;
     // Set a search radius of 5 kilometers
-    const radiusMeters = 5000;
+    const radiusMeters = 8000;
 
     try {
       console.log(`Searching for water features around ${lat}, ${lon} with ${radiusMeters}m radius...`);
@@ -331,8 +331,8 @@ export default function FishingMapScreen() {
             initialRegion={{
               latitude: location.coords.latitude,
               longitude: location.coords.longitude,
-              latitudeDelta: 0.5,
-              longitudeDelta: 0.5,
+              latitudeDelta: 2.0,
+              longitudeDelta: 2.0,
             }}
             showsUserLocation={true}
             showsMyLocationButton={true}
