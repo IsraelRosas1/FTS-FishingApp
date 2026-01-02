@@ -78,7 +78,7 @@ export default function FishingMapScreen() {
     const lat = location.coords.latitude;
     const lon = location.coords.longitude;
     // Set a search radius of 5 kilometers
-    const radiusMeters = 8000;
+    const radiusMeters = 10000;
 
     try {
       console.log(`Searching for water features around ${lat}, ${lon} with ${radiusMeters}m radius...`);

@@ -51,20 +51,20 @@ function buildOverpassQuery(lat: number, lon: number, radiusMeters: number) {
         ["natural"="water"]
         ["water"="lake"];
 
-      way(around:${radiusMeters},${lat},${lon})
-        ["water"="reservoir"];
-      relation(around:${radiusMeters},${lat},${lon})
-        ["water"="reservoir"];
-
-      way(around:${radiusMeters},${lat},${lon})
-        ["water"="pond"];
-      relation(around:${radiusMeters},${lat},${lon})
-        ["water"="pond"];
     );
     out center tags;
   `;
 }
+//Before
+      // way(around:${radiusMeters},${lat},${lon})
+      //   ["water"="reservoir"];
+      // relation(around:${radiusMeters},${lat},${lon})
+      //   ["water"="reservoir"];
 
+      // way(around:${radiusMeters},${lat},${lon})
+      //   ["water"="pond"];
+      // relation(around:${radiusMeters},${lat},${lon})
+      //   ["water"="pond"];
 
 function parseOverpassElement(el: any): WaterFeature | null {
   if (!el || !el.type || !el.id) return null;
