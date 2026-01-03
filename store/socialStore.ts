@@ -13,12 +13,12 @@ interface SocialState {
   error: string | null;
   loadPosts: () => Promise<void>;
   createPost: (userId: string, userDisplayName: string, userProfileImage: string | null, catchId: string, caption: string, imageUrl: string) => Promise<void>;
-  likePost: (postId: string) => void;
-  unlikePost: (postId: string) => void;
-  addComment: (postId: string, userId: string, userDisplayName: string, userProfileImage: string | null, text: string) => void;
-  deletePost: (postId: string) => void;
+  likePost: (postId: string) => Promise<void>;
+  unlikePost: (postId: string) => Promise<void>;
+  addComment: (postId: string, userId: string, userDisplayName: string, userProfileImage: string | null, text: string) => Promise<void>;
+  deletePost: (postId: string) => Promise<void>;
   deleteComment: (commentId: string) => void;
-  fetchPostComments: (postId: string) => Comment[];
+  fetchPostComments: (postId: string) => Promise<Comment[]>;
 }
 
 // Mock posts for demo
@@ -82,7 +82,7 @@ const MOCK_COMMENTS: Comment[] = [
 ];
 
 export const useSocialStore = create<SocialState>()((set, get) => ({
-  posts: MOCK_POSTS,
+  posts: [],
   comments: MOCK_COMMENTS,
   isLoading: false,
   error: null,
@@ -126,29 +126,50 @@ export const useSocialStore = create<SocialState>()((set, get) => ({
     }
   },
   
-  likePost: (postId) => {
-    set((state) => ({
-      posts: state.posts.map((post) => 
-        post.id === postId 
-          ? { ...post, likes: post.likes + 1, isLiked: true } 
-          : post
-      ),
-    }));
+  likePost: async (postId) => {
+    try {
+      const postRef = doc(db, 'posts', postId);
+      const post = get().posts.find(p => p.id === postId);
+      if (!post) return;
+      
+      const newLikes = post.likes + 1;
+      await updateDoc(postRef, { likes: newLikes });
+      
+      set((state) => ({
+        posts: state.posts.map((p) => 
+          p.id === postId 
+            ? { ...p, likes: newLikes, isLiked: true } 
+            : p
+        ),
+      }));
+    } catch (error) {
+      console.error('Error liking post:', error);
+    }
   },
   
-  unlikePost: (postId) => {
-    set((state) => ({
-      posts: state.posts.map((post) => 
-        post.id === postId 
-          ? { ...post, likes: Math.max(0, post.likes - 1), isLiked: false } 
-          : post
-      ),
-    }));
+  unlikePost: async (postId) => {
+    try {
+      const postRef = doc(db, 'posts', postId);
+      const post = get().posts.find(p => p.id === postId);
+      if (!post) return;
+      
+      const newLikes = Math.max(0, post.likes - 1);
+      await updateDoc(postRef, { likes: newLikes });
+      
+      set((state) => ({
+        posts: state.posts.map((p) => 
+          p.id === postId 
+            ? { ...p, likes: newLikes, isLiked: false } 
+            : p
+        ),
+      }));
+    } catch (error) {
+      console.error('Error unliking post:', error);
+    }
   },
   
-  addComment: (postId, userId, userDisplayName, userProfileImage, text) => {
-    const newComment: Comment = {
-      id: generateUniqueId(),
+  addComment: async (postId, userId, userDisplayName, userProfileImage, text) => {
+    const newComment: Omit<Comment, 'id'> = {
       postId,
       userId,
       userDisplayName,
@@ -157,21 +178,33 @@ export const useSocialStore = create<SocialState>()((set, get) => ({
       createdAt: new Date().toISOString(),
     };
     
-    set((state) => ({
-      comments: [...state.comments, newComment],
-      posts: state.posts.map((post) => 
-        post.id === postId 
-          ? { ...post, comments: post.comments + 1 } 
-          : post
-      ),
-    }));
+    try {
+      const docRef = await addDoc(collection(db, 'comments'), newComment);
+      const commentWithId: Comment = { id: docRef.id, ...newComment };
+      
+      set((state) => ({
+        comments: [...state.comments, commentWithId],
+        posts: state.posts.map((post) => 
+          post.id === postId 
+            ? { ...post, comments: post.comments + 1 } 
+            : post
+        ),
+      }));
+    } catch (error) {
+      console.error('Error adding comment:', error);
+    }
   },
   
-  deletePost: (postId) => {
-    set((state) => ({
-      posts: state.posts.filter((post) => post.id !== postId),
-      comments: state.comments.filter((comment) => comment.postId !== postId),
-    }));
+  deletePost: async (postId) => {
+    try {
+      await deleteDoc(doc(db, 'posts', postId));
+      set((state) => ({
+        posts: state.posts.filter((post) => post.id !== postId),
+        comments: state.comments.filter((comment) => comment.postId !== postId),
+      }));
+    } catch (error) {
+      console.error('Error deleting post:', error);
+    }
   },
   
   deleteComment: (commentId) => {
@@ -188,7 +221,18 @@ export const useSocialStore = create<SocialState>()((set, get) => ({
     }));
   },
   
-  fetchPostComments: (postId) => {
-    return get().comments.filter((comment) => comment.postId === postId);
+  fetchPostComments: async (postId) => {
+    try {
+      const commentsQuery = query(collection(db, 'comments'), where('postId', '==', postId), orderBy('createdAt', 'asc'));
+      const querySnapshot = await getDocs(commentsQuery);
+      const comments: Comment[] = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      } as Comment));
+      return comments;
+    } catch (error) {
+      console.error('Error fetching comments:', error);
+      return [];
+    }
   },
 }));

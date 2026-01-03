@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, FlatList, Text, TouchableOpacity, Image, Alert } from 'react-native';
-import { useRouter } from 'expo-router';
+import { StyleSheet, View, FlatList, Text, TouchableOpacity, Image, Alert, Modal } from 'react-native';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Grid, List, Settings } from 'lucide-react-native';
 import { useAuthStore } from '@/store/authStore';
 import { useSocialStore } from '@/store/socialStore';
@@ -12,31 +12,69 @@ import EmptyState from '@/components/EmptyState';
 import Colors from '@/constants/colors';
 import { Catch } from '@/types/fish';
 import { Post } from '@/types/user';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '@/src/firebaseConfig';
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const user = useAuthStore((state) => state.user);
+  const { id } = useLocalSearchParams<{ id?: string }>();
+  const currentUser = useAuthStore((state) => state.user);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const { posts, loadPosts } = useSocialStore();
   const { catches, loadCatches } = useCatchStore();
   
-  const userPosts = posts.filter((post) => post.userId === user?.id);
+  const [profileUser, setProfileUser] = useState(currentUser);
+  const [isOwnProfile, setIsOwnProfile] = useState(!id);
   
   const [activeTab, setActiveTab] = useState<'catchbook' | 'posts'>('catchbook');
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
+  const [showCreatePostModal, setShowCreatePostModal] = useState(false);
+  
+  const loadOtherUserProfile = async (userId: string) => {
+    try {
+      const userDoc = await getDoc(doc(db, 'users', userId));
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        setProfileUser({
+          id: userId,
+          email: userData.email,
+          displayName: userData.displayName,
+          profileImageUrl: userData.profileImageUrl,
+          bio: userData.bio,
+          username: userData.username || userData.displayName?.toLowerCase().replace(/\s+/g, ''),
+          followers: userData.followers || 0,
+          following: userData.following || 0,
+          createdAt: userData.createdAt?.toDate()?.toISOString() || new Date().toISOString(),
+        });
+      }
+    } catch (error) {
+      console.error('Error loading user profile:', error);
+      Alert.alert('Error', 'Failed to load user profile');
+    }
+  };
   
   useEffect(() => {
     if (!isAuthenticated) {
       router.replace('/(auth)');
+      return;
     }
-  }, [isAuthenticated]);
+    
+    if (id && id !== currentUser?.id) {
+      // Load other user's profile
+      loadOtherUserProfile(id);
+      setIsOwnProfile(false);
+    } else {
+      setProfileUser(currentUser);
+      setIsOwnProfile(true);
+    }
+  }, [id, currentUser, isAuthenticated]);
   
   useEffect(() => {
-    if (user?.id) {
+    if (profileUser?.id) {
       loadPosts();
-      loadCatches(user.id);
+      loadCatches(profileUser.id);
     }
-  }, [user?.id]);
+  }, [profileUser?.id]);
   
   if (!isAuthenticated) {
     return (
@@ -54,7 +92,7 @@ export default function ProfileScreen() {
     );
   }
   
-  if (!user) {
+  if (!profileUser) {
     return (
       <View style={styles.container}>
         <Text style={styles.loadingText}>Loading profile...</Text>
@@ -65,6 +103,8 @@ export default function ProfileScreen() {
   const handleEditProfile = () => {
     router.push('/edit-profile');
   };
+  
+  const userPosts = posts.filter(post => post.userId === profileUser?.id);
   
   const renderGridItem = ({ item }: { item: Catch | Post }) => {
     if (activeTab === 'posts') {
@@ -128,8 +168,8 @@ export default function ProfileScreen() {
         ListHeaderComponent={
           <>
             <ProfileHeader 
-              user={user} 
-              isCurrentUser={true}
+              user={profileUser!} 
+              isCurrentUser={isOwnProfile}
               onEditProfile={handleEditProfile}
             />
             
@@ -193,19 +233,25 @@ export default function ProfileScreen() {
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyText}>
                 {activeTab === 'catchbook' 
-                  ? "You haven't caught any fish yet" 
-                  : "You haven't shared any posts yet"}
+                  ? (isOwnProfile ? "You haven't caught any fish yet" : "This user hasn't caught any fish yet")
+                  : (isOwnProfile ? "You haven't shared any posts yet" : "This user hasn't shared any posts yet")}
               </Text>
-              <TouchableOpacity 
-                style={styles.emptyButton}
-                onPress={() => router.push('/history')}
-              >
-                <Text style={styles.emptyButtonText}>
-                  {activeTab === 'catchbook' 
-                    ? "Identify Your First Fish" 
-                    : "Share a Catch"}
-                </Text>
-              </TouchableOpacity>
+              {isOwnProfile && activeTab === 'posts' && (
+                <TouchableOpacity 
+                  style={styles.emptyButton}
+                  onPress={() => setShowCreatePostModal(true)}
+                >
+                  <Text style={styles.emptyButtonText}>Create Post</Text>
+                </TouchableOpacity>
+              )}
+              {isOwnProfile && activeTab === 'catchbook' && (
+                <TouchableOpacity 
+                  style={styles.emptyButton}
+                  onPress={() => router.push('/history')}
+                >
+                  <Text style={styles.emptyButtonText}>Identify Your First Fish</Text>
+                </TouchableOpacity>
+              )}
             </View>
           ) : null
         }
@@ -215,6 +261,48 @@ export default function ProfileScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       />
+      
+      <Modal
+        visible={showCreatePostModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowCreatePostModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Create New Post</Text>
+            
+            <TouchableOpacity 
+              style={styles.modalOption}
+              onPress={() => {
+                setShowCreatePostModal(false);
+                router.push('/history');
+              }}
+            >
+              <Text style={styles.modalOptionText}>Share from Catchbook</Text>
+              <Text style={styles.modalOptionSubtext}>Post an existing catch</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.modalOption}
+              onPress={() => {
+                setShowCreatePostModal(false);
+                router.push('/camera');
+              }}
+            >
+              <Text style={styles.modalOptionText}>Upload New Photo</Text>
+              <Text style={styles.modalOptionSubtext}>Take or select a new photo</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.modalCancel}
+              onPress={() => setShowCreatePostModal(false)}
+            >
+              <Text style={styles.modalCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -346,5 +434,50 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '500',
     textAlign: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: Colors.card,
+    borderRadius: 12,
+    padding: 20,
+    margin: 20,
+    width: '80%',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: Colors.text,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  modalOption: {
+    backgroundColor: Colors.background,
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  modalOptionText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: Colors.text,
+  },
+  modalOptionSubtext: {
+    fontSize: 14,
+    color: Colors.textLight,
+    marginTop: 4,
+  },
+  modalCancel: {
+    padding: 16,
+    alignItems: 'center',
+  },
+  modalCancelText: {
+    fontSize: 16,
+    color: Colors.primary,
+    fontWeight: '500',
   },
 });

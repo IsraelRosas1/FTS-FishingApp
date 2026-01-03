@@ -16,12 +16,13 @@ export default function FeedScreen() {
   const [feedMode, setFeedMode] = useState<FeedMode>('social');
   const posts = useSocialStore((state) => state.posts);
   const isLoading = useSocialStore((state) => state.isLoading);
+  const loadPosts = useSocialStore((state) => state.loadPosts);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const signOut = useAuthStore((state) => state.signOut);
   
   useEffect(() => {
-    if (!isAuthenticated) {
-      router.replace('/(auth)');
+    if (isAuthenticated) {
+      loadPosts();
     }
   }, [isAuthenticated]);
   

@@ -5,6 +5,7 @@ import { Camera } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import Colors from '@/constants/colors';
 import { useAuthStore } from '@/store/authStore';
+import { uploadImage, generateImagePath } from '@/utils/firebaseStorage';
 
 export default function EditProfileScreen() {
   const router = useRouter();
@@ -41,7 +42,7 @@ export default function EditProfileScreen() {
     }
   };
   
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!displayName.trim()) {
       Alert.alert('Invalid Input', 'Display name cannot be empty');
       return;
@@ -52,15 +53,29 @@ export default function EditProfileScreen() {
       return;
     }
     
-    updateProfile({
-      displayName: displayName.trim(),
-      username: username.trim(),
-      bio: bio.trim(),
-      profileImageUrl: profileImage,
-    });
-    
-    Alert.alert('Profile Updated', 'Your profile has been updated successfully');
-    router.back();
+    try {
+      let finalProfileImageUrl = profileImage;
+      
+      // Upload profile image to Firebase Storage if it's a local URI
+      if (profileImage && !profileImage.startsWith('http')) {
+        const fileName = `profile_${Date.now()}.jpg`;
+        const path = generateImagePath(user.id, 'profile', fileName);
+        finalProfileImageUrl = await uploadImage(profileImage, path);
+      }
+      
+      updateProfile({
+        displayName: displayName.trim(),
+        username: username.trim(),
+        bio: bio.trim(),
+        profileImageUrl: finalProfileImageUrl,
+      });
+      
+      Alert.alert('Profile Updated', 'Your profile has been updated successfully');
+      router.back();
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      Alert.alert('Error', 'Failed to update profile. Please try again.');
+    }
   };
   
   return (

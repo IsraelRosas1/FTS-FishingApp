@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { Send } from 'lucide-react-native';
@@ -7,21 +7,31 @@ import { useSocialStore } from '@/store/socialStore';
 import { useAuthStore } from '@/store/authStore';
 import PostCard from '@/components/PostCard';
 import CommentItem from '@/components/CommentItem';
+import { Comment as FishComment } from '@/types/user';
 
 export default function PostDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [commentText, setCommentText] = useState('');
+  const [comments, setComments] = useState<FishComment[]>([]);
   
   const post = useSocialStore((state) => 
     state.posts.find((p) => p.id === id)
   );
-  const comments = useSocialStore((state) => 
-    state.fetchPostComments(id || '')
-  );
+  const fetchPostComments = useSocialStore((state) => state.fetchPostComments);
   const addComment = useSocialStore((state) => state.addComment);
   
   const user = useAuthStore((state) => state.user);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  
+  useEffect(() => {
+    const loadComments = async () => {
+      if (id) {
+        const fetchedComments = await fetchPostComments(id);
+        setComments(fetchedComments);
+      }
+    };
+    loadComments();
+  }, [id, fetchPostComments]);
   
   if (!post) {
     return (
@@ -31,18 +41,27 @@ export default function PostDetailScreen() {
     );
   }
   
-  const handleAddComment = () => {
-    if (!commentText.trim() || !user || !isAuthenticated) return;
+  const handleAddComment = async () => {
+    if (!commentText.trim() || !user || !isAuthenticated || !post) return;
     
-    addComment(
-      post.id,
-      user.id,
-      user.displayName,
-      user.profileImageUrl,
-      commentText.trim()
-    );
-    
-    setCommentText('');
+    try {
+      await addComment(
+        post.id,
+        user.id,
+        user.displayName,
+        user.profileImageUrl,
+        commentText.trim()
+      );
+      
+      // Reload comments after adding
+      const updatedComments = await fetchPostComments(post.id);
+      setComments(updatedComments);
+      
+      setCommentText('');
+    } catch (error) {
+      console.error('Error adding comment:', error);
+      // TODO: Show error to user
+    }
   };
   
   return (

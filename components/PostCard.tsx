@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { StyleSheet, View, Text, Image, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { formatDistanceToNow } from 'date-fns';
-import { Heart, MessageCircle, Share2 } from 'lucide-react-native';
+import { Heart, MessageCircle, Share2, Trash2 } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import { Post } from '@/types/user';
 import { useSocialStore } from '@/store/socialStore';
@@ -16,7 +16,7 @@ interface PostCardProps {
 export default function PostCard({ post, showComments = false }: PostCardProps) {
   const router = useRouter();
   const [isLiked, setIsLiked] = useState(post.isLiked || false);
-  const { likePost, unlikePost } = useSocialStore();
+  const { likePost, unlikePost, deletePost } = useSocialStore();
   const user = useAuthStore((state) => state.user);
   
   const formattedDate = formatDistanceToNow(new Date(post.createdAt), { addSuffix: true });
@@ -32,6 +32,10 @@ export default function PostCard({ post, showComments = false }: PostCardProps) 
   
   const handleCommentPress = () => {
     router.push(`/post/${post.id}`);
+  };
+  
+  const handleDelete = () => {
+    deletePost(post.id);
   };
   
   const handleProfilePress = () => {
@@ -57,6 +61,11 @@ export default function PostCard({ post, showComments = false }: PostCardProps) 
             <Text style={styles.postTime}>{formattedDate}</Text>
           </View>
         </TouchableOpacity>
+        {post.userId === user?.id && (
+          <TouchableOpacity onPress={handleDelete} style={styles.deleteButton}>
+            <Trash2 size={20} color={Colors.error} />
+          </TouchableOpacity>
+        )}
       </View>
       
       <Image 
@@ -134,6 +143,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 12,
+  },
+  deleteButton: {
+    padding: 8,
   },
   userInfo: {
     flexDirection: 'row',

@@ -19,7 +19,7 @@ export default function CameraView() {
   const [permission, requestPermission] = useCameraPermissions();
   const [locationPermission, requestLocationPermission] = useState<boolean | null>(null);
   const cameraRef = useRef<any>(null);
-  const frameAnalysisInterval = useRef<NodeJS.Timeout | null>(null);
+  const frameAnalysisInterval = useRef<number | null>(null);
   const router = useRouter();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
@@ -119,12 +119,10 @@ export default function CameraView() {
   };
 
   const startVideoRecording = async () => {
-    if (!cameraRef.current || Platform.OS === 'web') return;
+    if (!cameraRef.current) return;
     
     try {
-      if (Platform.OS !== 'web') {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      }
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       
       setIsRecording(true);
       
