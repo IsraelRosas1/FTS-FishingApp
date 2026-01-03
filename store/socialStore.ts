@@ -2,13 +2,17 @@ import { create } from 'zustand';
 import { Post, Comment } from '@/types/user';
 import { generateUniqueId } from '@/utils/fishRecognition';
 import { useCatchStore } from './catchStore';
+// FIREBASE IMPORTS
+import { db } from '@/src/firebaseConfig';
+import { collection, getDocs, addDoc, doc, updateDoc, deleteDoc, query, where, orderBy } from 'firebase/firestore';
 
 interface SocialState {
   posts: Post[];
   comments: Comment[];
   isLoading: boolean;
   error: string | null;
-  createPost: (userId: string, userDisplayName: string, userProfileImage: string | null, catchId: string, caption: string, imageUrl: string) => void;
+  loadPosts: () => Promise<void>;
+  createPost: (userId: string, userDisplayName: string, userProfileImage: string | null, catchId: string, caption: string, imageUrl: string) => Promise<void>;
   likePost: (postId: string) => void;
   unlikePost: (postId: string) => void;
   addComment: (postId: string, userId: string, userDisplayName: string, userProfileImage: string | null, text: string) => void;
@@ -77,15 +81,29 @@ const MOCK_COMMENTS: Comment[] = [
   },
 ];
 
-export const useSocialStore = create<SocialState>((set, get) => ({
+export const useSocialStore = create<SocialState>()((set, get) => ({
   posts: MOCK_POSTS,
   comments: MOCK_COMMENTS,
   isLoading: false,
   error: null,
   
-  createPost: (userId, userDisplayName, userProfileImage, catchId, caption, imageUrl) => {
-    const newPost: Post = {
-      id: generateUniqueId(),
+  loadPosts: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      const postsQuery = query(collection(db, 'posts'), orderBy('createdAt', 'desc'));
+      const querySnapshot = await getDocs(postsQuery);
+      const posts: Post[] = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      } as Post));
+      set({ posts, isLoading: false });
+    } catch (error: any) {
+      set({ error: error.message, isLoading: false });
+    }
+  },
+  
+  createPost: async (userId, userDisplayName, userProfileImage, catchId, caption, imageUrl) => {
+    const newPost: Omit<Post, 'id'> = {
       userId,
       userDisplayName,
       userProfileImage,
@@ -97,9 +115,15 @@ export const useSocialStore = create<SocialState>((set, get) => ({
       createdAt: new Date().toISOString(),
     };
     
-    set((state) => ({
-      posts: [newPost, ...state.posts],
-    }));
+    try {
+      const docRef = await addDoc(collection(db, 'posts'), newPost);
+      const postWithId: Post = { id: docRef.id, ...newPost };
+      set((state) => ({
+        posts: [postWithId, ...state.posts],
+      }));
+    } catch (error) {
+      console.error('Error creating post:', error);
+    }
   },
   
   likePost: (postId) => {

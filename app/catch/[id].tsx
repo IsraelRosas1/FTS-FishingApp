@@ -10,6 +10,9 @@ import { useAuthStore } from '@/store/authStore';
 import { useSocialStore } from '@/store/socialStore';
 import ImprovementTips from '@/components/ImprovementTips';
 
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/src/firebaseConfig";
+
 export default function CatchDetailScreen() {
   const { id, showShare, temp } = useLocalSearchParams<{ 
     id: string; 

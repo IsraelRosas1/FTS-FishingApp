@@ -5,6 +5,9 @@ import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
 import Colors from '@/constants/colors';
 
+import type { WaterFeature } from '@/utils/overpassService';
+import { searchWaterFeatures } from '@/utils/overpassService';
+
 interface FishingSpot {
   id: string;
   name: string;
@@ -24,6 +27,7 @@ export default function FishingMapScreen() {
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
   const [showFullScreenMap, setShowFullScreenMap] = useState(false);
   const [selectedSpot, setSelectedSpot] = useState<FishingSpot | null>(null);
+  const [mapRegion, setMapRegion] = useState<any>(null);
 
   useEffect(() => {
     getCurrentLocation();
@@ -51,6 +55,12 @@ export default function FishingMapScreen() {
       const currentLocation = await Location.getCurrentPositionAsync({});
       console.log('Location obtained:', currentLocation.coords);
       setLocation(currentLocation);
+      setMapRegion({
+        latitude: currentLocation.coords.latitude,
+        longitude: currentLocation.coords.longitude,
+        latitudeDelta: 2.0,
+        longitudeDelta: 2.0,
+      });
       
     } catch (error) {
       console.error('Error getting location:', error);
@@ -60,82 +70,72 @@ export default function FishingMapScreen() {
   };
 
   const loadFishingSpots = async () => {
+    if (!location) return;
+
+    setIsLoading(true);
+    setSelectedSpot(null); // Clear selected spot
+    
+    const lat = location.coords.latitude;
+    const lon = location.coords.longitude;
+    // Set a search radius of 5 kilometers
+    const radiusMeters = 10000;
+
     try {
-      console.log('Loading fishing spots...');
+      console.log(`Searching for water features around ${lat}, ${lon} with ${radiusMeters}m radius...`);
       
-      // Mock fishing spots data - in a real app, this would come from an API
-      const mockSpots: FishingSpot[] = [
-        {
-          id: '1',
-          name: 'Lake Michigan - Grand Haven',
-          distance: 12.5,
-          fishTypes: ['Salmon', 'Trout', 'Steelhead'],
-          bestTime: '6:00 AM - 9:00 AM',
-          coordinates: { latitude: 43.0642, longitude: -86.2284 }
-        },
-        {
-          id: '2',
-          name: 'Muskegon River',
-          distance: 8.3,
-          fishTypes: ['Steelhead', 'Brown Trout'],
-          bestTime: '5:30 AM - 8:30 AM',
-          coordinates: { latitude: 43.2342, longitude: -86.2484 }
-        },
-        {
-          id: '3',
-          name: 'White Lake',
-          distance: 15.7,
-          fishTypes: ['Bass', 'Pike', 'Bluegill'],
-          bestTime: '7:00 AM - 10:00 AM',
-          coordinates: { latitude: 43.3542, longitude: -86.3284 }
-        },
-        {
-          id: '4',
-          name: 'Pere Marquette River',
-          distance: 22.1,
-          fishTypes: ['Steelhead', 'Salmon'],
-          bestTime: '6:00 AM - 9:30 AM',
-          coordinates: { latitude: 43.9642, longitude: -86.1284 }
-        },
-        {
-          id: '5',
-          name: 'Spring Lake',
-          distance: 6.8,
-          fishTypes: ['Bass', 'Walleye', 'Perch'],
-          bestTime: '6:30 AM - 9:00 AM',
-          coordinates: { latitude: 43.1342, longitude: -86.1984 }
-        },
-        {
-          id: '6',
-          name: 'Kalamazoo River',
-          distance: 18.4,
-          fishTypes: ['Steelhead', 'Salmon', 'Brown Trout'],
-          bestTime: '5:00 AM - 8:00 AM',
-          coordinates: { latitude: 42.6642, longitude: -86.2584 }
-        },
-        {
-          id: '7',
-          name: 'Gun Lake',
-          distance: 25.3,
-          fishTypes: ['Bass', 'Pike', 'Bluegill'],
-          bestTime: '7:00 AM - 10:30 AM',
-          coordinates: { latitude: 42.4642, longitude: -85.4284 }
-        },
-        {
-          id: '8',
-          name: 'Manistee River',
-          distance: 35.2,
-          fishTypes: ['Steelhead', 'Salmon', 'Brown Trout'],
-          bestTime: '5:30 AM - 8:30 AM',
-          coordinates: { latitude: 44.2442, longitude: -85.8711 }
-        }
-      ];
-      
-      setFishingSpots(mockSpots);
-      console.log(`Loaded ${mockSpots.length} fishing spots`);
+      // Call the external Overpass service function
+      const features = await searchWaterFeatures(lat, lon, radiusMeters);
+
+      // Map the returned WaterFeature[] into the app's FishingSpot[] shape
+      const spots: FishingSpot[] = features.map((feature: any) => {
+          // Use feature.center for ways/relations, fall back to feature's own coords (for nodes)
+          const featureLat = feature.center?.lat ?? feature.lat;
+          const featureLon = feature.center?.lon ?? feature.lon;
+
+          if (!featureLat || !featureLon) {
+              console.warn(`Skipping feature ${feature.id} due to missing coordinates.`);
+              return null;
+          }
+          
+          // Mock/placeholder data for non-API-provided fields
+          const mockDistance = Math.floor(Math.random() * 20) + 1; 
+          const name = feature.tags?.name || 'Unnamed Water Feature';
+          let fishTypes = ['Bass', 'Perch'];
+          
+          if (name.toLowerCase().includes('river')) fishTypes = ['Steelhead', 'Trout'];
+          else if (name.toLowerCase().includes('lake')) fishTypes = ['Salmon', 'Pike', 'Bass'];
+          else if (name.toLowerCase().includes('pond')) fishTypes = ['Bluegill'];
+
+          return {
+            id: String(feature.id),
+            name: name,
+            distance: mockDistance,
+            fishTypes: fishTypes,
+            bestTime: 'Sunrise to Sunset', // Placeholder
+            coordinates: {
+              latitude: featureLat,
+              longitude: featureLon,
+            }
+          };
+      }).filter((spot): spot is FishingSpot => spot !== null); // Filter out nulls
+
+      // Sort spots: lakes first, then others
+      spots.sort((a, b) => {
+        const aIsLake = a.name.toLowerCase().includes('lake');
+        const bIsLake = b.name.toLowerCase().includes('lake');
+        if (aIsLake && !bIsLake) return -1;
+        if (!aIsLake && bIsLake) return 1;
+        return 0;
+      });
+
+      setFishingSpots(spots);
+      console.log(`Loaded ${spots.length} fishing spots from Overpass data.`);
+
     } catch (error) {
-      console.error('Error loading fishing spots:', error);
-      Alert.alert('Error', 'Unable to load fishing spots');
+      console.error('Error loading fishing spots from Overpass:', error);
+      // Display error toast/alert as requested
+      Alert.alert('Search Error', 'Unable to load water features from the map data service. Please check your network.');
+      setFishingSpots([]); // Fallback to empty array
     } finally {
       setIsLoading(false);
     }
@@ -167,12 +167,7 @@ export default function FishingMapScreen() {
         <MapView
           style={styles.map}
           provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
-          initialRegion={{
-            latitude: location.coords.latitude,
-            longitude: location.coords.longitude,
-            latitudeDelta: 0.5,
-            longitudeDelta: 0.5,
-          }}
+          region={mapRegion}
           showsUserLocation={true}
           showsMyLocationButton={true}
         >
@@ -264,7 +259,16 @@ export default function FishingMapScreen() {
             <TouchableOpacity 
               key={spot.id} 
               style={styles.spotCard}
-              onPress={() => openInMaps(spot)}
+              onPress={() => {
+                setViewMode('map');
+                setSelectedSpot(spot);
+                setMapRegion({
+                  latitude: spot.coordinates.latitude,
+                  longitude: spot.coordinates.longitude,
+                  latitudeDelta: 0.1,
+                  longitudeDelta: 0.1,
+                });
+              }}
             >
               <View style={styles.spotHeader}>
                 <View>
@@ -301,7 +305,7 @@ export default function FishingMapScreen() {
               <Fish size={48} color={Colors.textLight} />
               <Text style={styles.loadingText}>No fishing spots found</Text>
               <Text style={styles.loadingSubtext}>
-                Enable location services to find nearby fishing spots
+                We couldn't find any water features nearby.
               </Text>
             </View>
           )}
@@ -327,8 +331,8 @@ export default function FishingMapScreen() {
             initialRegion={{
               latitude: location.coords.latitude,
               longitude: location.coords.longitude,
-              latitudeDelta: 0.5,
-              longitudeDelta: 0.5,
+              latitudeDelta: 2.0,
+              longitudeDelta: 2.0,
             }}
             showsUserLocation={true}
             showsMyLocationButton={true}

@@ -17,10 +17,10 @@ export default function ProfileScreen() {
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const posts = useSocialStore((state) => 
-    state.posts.filter((post) => post.userId === user?.id)
-  );
-  const catches = useCatchStore((state) => state.catches);
+  const { posts, loadPosts } = useSocialStore();
+  const { catches, loadCatches } = useCatchStore();
+  
+  const userPosts = posts.filter((post) => post.userId === user?.id);
   
   const [activeTab, setActiveTab] = useState<'catchbook' | 'posts'>('catchbook');
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
@@ -30,6 +30,13 @@ export default function ProfileScreen() {
       router.replace('/(auth)');
     }
   }, [isAuthenticated]);
+  
+  useEffect(() => {
+    if (user?.id) {
+      loadPosts();
+      loadCatches(user.id);
+    }
+  }, [user?.id]);
   
   if (!isAuthenticated) {
     return (
@@ -104,7 +111,7 @@ export default function ProfileScreen() {
   
   // Get the correct data based on active tab with proper typing
   const getCurrentData = (): (Catch | Post)[] => {
-    return activeTab === 'catchbook' ? catches : posts;
+    return activeTab === 'catchbook' ? catches : userPosts;
   };
   
   const currentData = getCurrentData();
@@ -153,7 +160,7 @@ export default function ProfileScreen() {
                   styles.tabText,
                   activeTab === 'posts' && styles.activeTabText
                 ]}>
-                  Posts ({posts.length})
+                  Posts ({userPosts.length})
                 </Text>
               </TouchableOpacity>
               

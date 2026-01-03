@@ -6,8 +6,12 @@ import { useEffect } from "react";
 import { StatusBar } from "expo-status-bar";
 import Colors from "@/constants/colors";
 
+import { db } from "@/src/firebaseConfig";
+import { useRouter, useSegments } from "expo-router";
+import { useAuthStore } from "@/store/authStore"; // Ensure this path is correct
+
 export const unstable_settings = {
-  initialRouteName: "(tabs)",
+  initialRouteName: "(auth)",
 };
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
@@ -39,6 +43,25 @@ export default function RootLayout() {
 }
 
 function RootLayoutNav() {
+  const { isAuthenticated, isLoading } = useAuthStore();
+  const segments = useSegments();
+  const router = useRouter();
+
+  useEffect(() => {
+    // 1. Wait until fonts/auth are not loading
+    if (isLoading) return;
+
+    // 2. Determine if the user is currently in the (auth) folder
+    const inAuthGroup = segments[0] === "(auth)";
+
+    if (!isAuthenticated && !inAuthGroup) {
+      // 3. If NOT logged in and NOT in auth screens, kick them to login
+      router.replace("/(auth)/signin");
+    } else if (isAuthenticated && inAuthGroup) {
+      // 4. If logged in but trying to go to login/signup, push them to the app
+      router.replace("/(tabs)");
+    }
+  }, [isAuthenticated, segments, isLoading]);
   return (
     <>
       <StatusBar style="dark" />
