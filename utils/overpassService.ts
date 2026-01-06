@@ -9,6 +9,7 @@ export type WaterFeature = {
   name?: string;
   center?: { lat: number; lon: number };
   tags: Record<string, string>;
+  fishSpecies?: FishSpecies[]; // Optional fish species data
 };
 
 const DEFAULT_OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
@@ -171,8 +172,6 @@ export async function searchWaterFeatures(
 
   return results.filter(isFishableLake);
 }
-
-export default { searchWaterFeatures };
 interface OverpassElement{
     type: 'node' | 'way' | 'relation';
     id: number;
@@ -186,3 +185,70 @@ interface OverpassElement{
         role: string;
     }>;
 }
+
+// New Type for the iNaturalist Fish Data
+export type FishSpecies = {
+  id: number;
+  commonName: string;
+  scientificName: string;
+  imageUrl: string;
+  observationCount: number;
+  wikipediaUrl?: string;
+};
+
+/**
+ * Fetches fish species observed near a specific water feature.
+ * @param lat Latitude of the lake center
+ * @param lon Longitude of the lake center
+ * @param radiusKm Search radius (default 3km)
+ */
+export async function fetchFishSpecies(
+  lat: number,
+  lon: number,
+  radiusKm = 3
+): Promise<FishSpecies[]> {
+  // NEW FILTERS ADDED: quality_grade and identifications
+  const url = `https://api.inaturalist.org/v1/observations/species_counts?` + 
+              `lat=${lat}&lng=${lon}&radius=${radiusKm}` +
+              `&taxon_id=47178` +           // Ray-finned fishes
+              `&quality_grade=research` +    // ONLY verified experts
+              `&identifications=most_agree` + // High community agreement
+              `&per_page=15`;               // Focus on the top species
+
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('iNaturalist API error');
+
+    const json = await res.json();
+
+    return json.results.map((item: any) => ({
+      id: item.taxon.id,
+      commonName: item.taxon.preferred_common_name || item.taxon.name,
+      scientificName: item.taxon.name,
+      imageUrl: item.taxon.default_photo?.medium_url || '',
+      observationCount: item.count,
+      wikipediaUrl: item.taxon.wikipedia_url,
+    }));
+  } catch (error) {
+    console.error("Failed to fetch fish species:", error);
+    return [];
+  }
+}
+
+/**
+ * Fetches fish species for a specific lake using its center coordinates.
+ * @param lake The water feature (lake) to get fish species for
+ * @param radiusKm Search radius in km (default 10)
+ */
+export async function getFishForLake(
+  lake: WaterFeature,
+  radiusKm = 3
+): Promise<FishSpecies[]> {
+  if (!lake.center) {
+    console.warn("Lake has no center coordinates, cannot fetch fish species");
+    return [];
+  }
+  return fetchFishSpecies(lake.center.lat, lake.center.lon, radiusKm);
+}
+
+export default { searchWaterFeatures, fetchFishSpecies, getFishForLake };
