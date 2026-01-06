@@ -4,17 +4,17 @@ import { generateUniqueId } from '@/utils/fishRecognition';
 import { useCatchStore } from './catchStore';
 // FIREBASE IMPORTS
 import { db } from '@/src/firebaseConfig';
-import { collection, getDocs, addDoc, doc, updateDoc, deleteDoc, query, where, orderBy } from 'firebase/firestore';
+import { collection, getDocs, addDoc, doc, updateDoc, deleteDoc, query, where, orderBy, getDoc } from 'firebase/firestore';
 
 interface SocialState {
   posts: Post[];
   comments: Comment[];
   isLoading: boolean;
   error: string | null;
-  loadPosts: () => Promise<void>;
+  loadPosts: (userId?: string) => Promise<void>;
   createPost: (userId: string, userDisplayName: string, userProfileImage: string | null, catchId: string, caption: string, imageUrl: string) => Promise<void>;
-  likePost: (postId: string) => Promise<void>;
-  unlikePost: (postId: string) => Promise<void>;
+  likePost: (postId: string, userId: string) => Promise<void>;
+  unlikePost: (postId: string, userId: string) => Promise<void>;
   addComment: (postId: string, userId: string, userDisplayName: string, userProfileImage: string | null, text: string) => Promise<void>;
   deletePost: (postId: string) => Promise<void>;
   deleteComment: (commentId: string) => void;
@@ -87,15 +87,26 @@ export const useSocialStore = create<SocialState>()((set, get) => ({
   isLoading: false,
   error: null,
   
-  loadPosts: async () => {
+  loadPosts: async (userId) => {
     set({ isLoading: true, error: null });
     try {
       const postsQuery = query(collection(db, 'posts'), orderBy('createdAt', 'desc'));
       const querySnapshot = await getDocs(postsQuery);
+      
+      // Get liked posts for current user if logged in
+      let likedPostIds = new Set<string>();
+      if (userId) {
+        const likesQuery = query(collection(db, 'postLikes'), where('userId', '==', userId));
+        const likesSnapshot = await getDocs(likesQuery);
+        likedPostIds = new Set(likesSnapshot.docs.map(doc => doc.data().postId));
+      }
+      
       const posts: Post[] = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
+        isLiked: likedPostIds.has(doc.id),
       } as Post));
+      
       set({ posts, isLoading: false });
     } catch (error: any) {
       set({ error: error.message, isLoading: false });
@@ -126,8 +137,29 @@ export const useSocialStore = create<SocialState>()((set, get) => ({
     }
   },
   
-  likePost: async (postId) => {
+  likePost: async (postId, userId) => {
     try {
+      // Check if user already liked this post
+      const likeQuery = query(
+        collection(db, 'postLikes'), 
+        where('userId', '==', userId), 
+        where('postId', '==', postId)
+      );
+      const likeSnapshot = await getDocs(likeQuery);
+      
+      if (!likeSnapshot.empty) {
+        // User already liked this post
+        return;
+      }
+      
+      // Add like to postLikes collection
+      await addDoc(collection(db, 'postLikes'), {
+        userId,
+        postId,
+        createdAt: new Date().toISOString(),
+      });
+      
+      // Update post likes count
       const postRef = doc(db, 'posts', postId);
       const post = get().posts.find(p => p.id === postId);
       if (!post) return;
@@ -147,8 +179,25 @@ export const useSocialStore = create<SocialState>()((set, get) => ({
     }
   },
   
-  unlikePost: async (postId) => {
+  unlikePost: async (postId, userId) => {
     try {
+      // Find and delete the like document
+      const likeQuery = query(
+        collection(db, 'postLikes'), 
+        where('userId', '==', userId), 
+        where('postId', '==', postId)
+      );
+      const likeSnapshot = await getDocs(likeQuery);
+      
+      if (likeSnapshot.empty) {
+        // User hasn't liked this post
+        return;
+      }
+      
+      // Delete the like document
+      await deleteDoc(likeSnapshot.docs[0].ref);
+      
+      // Update post likes count
       const postRef = doc(db, 'posts', postId);
       const post = get().posts.find(p => p.id === postId);
       if (!post) return;

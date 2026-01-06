@@ -1,5 +1,5 @@
 // Firebase Storage utilities
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { storage } from '@/src/firebaseConfig';
 
 export const uploadImage = async (uri: string, path: string): Promise<string> => {
@@ -20,6 +20,28 @@ export const uploadImage = async (uri: string, path: string): Promise<string> =>
     return downloadURL;
   } catch (error) {
     console.error('Error uploading image:', error);
+    throw error;
+  }
+};
+
+export const deleteImage = async (url: string): Promise<void> => {
+  try {
+    // Extract the path from the Firebase Storage URL
+    const path = url.split('/o/')[1]?.split('?')[0];
+    if (!path) {
+      throw new Error('Invalid Firebase Storage URL');
+    }
+
+    // Decode the path
+    const decodedPath = decodeURIComponent(path);
+
+    // Create storage reference
+    const storageRef = ref(storage, decodedPath);
+
+    // Delete the file
+    await deleteObject(storageRef);
+  } catch (error) {
+    console.error('Error deleting image:', error);
     throw error;
   }
 };

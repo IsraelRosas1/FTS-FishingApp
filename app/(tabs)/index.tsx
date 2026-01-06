@@ -18,13 +18,14 @@ export default function FeedScreen() {
   const isLoading = useSocialStore((state) => state.isLoading);
   const loadPosts = useSocialStore((state) => state.loadPosts);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const user = useAuthStore((state) => state.user);
   const signOut = useAuthStore((state) => state.signOut);
   
   useEffect(() => {
-    if (isAuthenticated) {
-      loadPosts();
+    if (isAuthenticated && user?.id) {
+      loadPosts(user.id);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, user?.id]);
   
   if (isLoading) {
     return (

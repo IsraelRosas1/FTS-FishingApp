@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, FlatList, Text, TouchableOpacity, Image, Alert, Modal } from 'react-native';
+import { StyleSheet, View, FlatList, Text, TouchableOpacity } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { Grid, List, Settings } from 'lucide-react-native';
+import { Plus } from 'lucide-react-native';
 import { useAuthStore } from '@/store/authStore';
 import { useSocialStore } from '@/store/socialStore';
 import { useCatchStore } from '@/store/catchStore';
@@ -10,8 +10,8 @@ import PostCard from '@/components/PostCard';
 import CatchCard from '@/components/CatchCard';
 import EmptyState from '@/components/EmptyState';
 import Colors from '@/constants/colors';
-import { Catch } from '@/types/fish';
 import { Post } from '@/types/user';
+import { Catch } from '@/types/fish';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/src/firebaseConfig';
 
@@ -25,10 +25,7 @@ export default function ProfileScreen() {
   
   const [profileUser, setProfileUser] = useState(currentUser);
   const [isOwnProfile, setIsOwnProfile] = useState(!id);
-  
-  const [activeTab, setActiveTab] = useState<'catchbook' | 'posts'>('catchbook');
-  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
-  const [showCreatePostModal, setShowCreatePostModal] = useState(false);
+  const [activeTab, setActiveTab] = useState<'posts' | 'catchbook'>('posts');
   
   const loadOtherUserProfile = async (userId: string) => {
     try {
@@ -49,7 +46,6 @@ export default function ProfileScreen() {
       }
     } catch (error) {
       console.error('Error loading user profile:', error);
-      Alert.alert('Error', 'Failed to load user profile');
     }
   };
   
@@ -70,11 +66,13 @@ export default function ProfileScreen() {
   }, [id, currentUser, isAuthenticated]);
   
   useEffect(() => {
+    if (currentUser?.id) {
+      loadPosts(currentUser.id);
+    }
     if (profileUser?.id) {
-      loadPosts();
       loadCatches(profileUser.id);
     }
-  }, [profileUser?.id]);
+  }, [currentUser?.id, profileUser?.id]);
   
   if (!isAuthenticated) {
     return (
@@ -106,52 +104,16 @@ export default function ProfileScreen() {
   
   const userPosts = posts.filter(post => post.userId === profileUser?.id);
   
-  const renderGridItem = ({ item }: { item: Catch | Post }) => {
+  const renderItem = ({ item }: { item: Post | Catch }) => {
     if (activeTab === 'posts') {
-      const post = item as Post;
-      return (
-        <TouchableOpacity 
-          style={styles.gridItem}
-          onPress={() => router.push(`/post/${post.id}`)}
-        >
-          <Image 
-            source={{ uri: post.imageUrl }} 
-            style={styles.gridImage}
-          />
-        </TouchableOpacity>
-      );
-    } else {
-      const catchItem = item as Catch;
-      return (
-        <TouchableOpacity 
-          style={styles.gridItem}
-          onPress={() => router.push(`/catch/${catchItem.id}`)}
-        >
-          <Image 
-            source={{ uri: catchItem.imageUri }} 
-            style={styles.gridImage}
-          />
-          <View style={styles.gridOverlay}>
-            <Text style={styles.gridFishName} numberOfLines={1}>
-              {catchItem.fishName || 'Unknown'}
-            </Text>
-          </View>
-        </TouchableOpacity>
-      );
-    }
-  };
-  
-  const renderListItem = ({ item }: { item: Catch | Post }) => {
-    if (activeTab === 'catchbook') {
-      return <CatchCard item={item as Catch} />;
-    } else {
       return <PostCard post={item as Post} />;
+    } else {
+      return <CatchCard item={item as Catch} showDelete={isOwnProfile} />;
     }
   };
   
-  // Get the correct data based on active tab with proper typing
-  const getCurrentData = (): (Catch | Post)[] => {
-    return activeTab === 'catchbook' ? catches : userPosts;
+  const getCurrentData = (): (Post | Catch)[] => {
+    return activeTab === 'posts' ? userPosts : catches;
   };
   
   const currentData = getCurrentData();
@@ -159,99 +121,62 @@ export default function ProfileScreen() {
   
   return (
     <View style={styles.container}>
+      <ProfileHeader 
+        user={profileUser!} 
+        isCurrentUser={isOwnProfile}
+        onEditProfile={handleEditProfile}
+      />
+      <View style={styles.tabsContainer}>
+        <TouchableOpacity 
+          style={[
+            styles.tab, 
+            activeTab === 'posts' && styles.activeTab
+          ]}
+          onPress={() => setActiveTab('posts')}
+        >
+          <Text style={[
+            styles.tabText,
+            activeTab === 'posts' && styles.activeTabText
+          ]}>
+            Posts ({userPosts.length})
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={[
+            styles.tab, 
+            activeTab === 'catchbook' && styles.activeTab
+          ]}
+          onPress={() => setActiveTab('catchbook')}
+        >
+          <Text style={[
+            styles.tabText,
+            activeTab === 'catchbook' && styles.activeTabText
+          ]}>
+            Catchbook 
+          </Text>
+        </TouchableOpacity>
+      </View>
+      {activeTab === 'catchbook' && isOwnProfile && (
+        <TouchableOpacity 
+          style={styles.addCatchButton}
+          onPress={() => router.push('/history')}
+        >
+          <Plus size={20} color={Colors.card} />
+          <Text style={styles.addCatchButtonText}>Add New Catch</Text>
+        </TouchableOpacity>
+      )}
       <FlatList
         data={currentData}
         keyExtractor={(item) => item.id}
-        renderItem={viewMode === 'list' ? renderListItem : renderGridItem}
-        numColumns={viewMode === 'grid' ? 3 : 1}
-        key={`${viewMode}-${activeTab}`}
-        ListHeaderComponent={
-          <>
-            <ProfileHeader 
-              user={profileUser!} 
-              isCurrentUser={isOwnProfile}
-              onEditProfile={handleEditProfile}
-            />
-            
-            <View style={styles.tabsContainer}>
-              <TouchableOpacity 
-                style={[
-                  styles.tab, 
-                  activeTab === 'catchbook' && styles.activeTab
-                ]}
-                onPress={() => setActiveTab('catchbook')}
-              >
-                <Text style={[
-                  styles.tabText,
-                  activeTab === 'catchbook' && styles.activeTabText
-                ]}>
-                  Catchbook ({catches.length})
-                </Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={[
-                  styles.tab, 
-                  activeTab === 'posts' && styles.activeTab
-                ]}
-                onPress={() => setActiveTab('posts')}
-              >
-                <Text style={[
-                  styles.tabText,
-                  activeTab === 'posts' && styles.activeTabText
-                ]}>
-                  Posts ({userPosts.length})
-                </Text>
-              </TouchableOpacity>
-              
-              <View style={styles.viewModeContainer}>
-                <TouchableOpacity 
-                  style={[
-                    styles.viewModeButton,
-                    viewMode === 'list' && styles.activeViewMode
-                  ]}
-                  onPress={() => setViewMode('list')}
-                >
-                  <List size={20} color={viewMode === 'list' ? Colors.primary : Colors.textLight} />
-                </TouchableOpacity>
-                
-                <TouchableOpacity 
-                  style={[
-                    styles.viewModeButton,
-                    viewMode === 'grid' && styles.activeViewMode
-                  ]}
-                  onPress={() => setViewMode('grid')}
-                >
-                  <Grid size={20} color={viewMode === 'grid' ? Colors.primary : Colors.textLight} />
-                </TouchableOpacity>
-              </View>
-            </View>
-          </>
-        }
+        renderItem={renderItem}
         ListEmptyComponent={
           isEmpty ? (
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyText}>
-                {activeTab === 'catchbook' 
-                  ? (isOwnProfile ? "You haven't caught any fish yet" : "This user hasn't caught any fish yet")
-                  : (isOwnProfile ? "You haven't shared any posts yet" : "This user hasn't shared any posts yet")}
+                {activeTab === 'posts' 
+                  ? (isOwnProfile ? "You haven't shared any posts yet" : "This user hasn't shared any posts yet")
+                  : (isOwnProfile ? "You haven't caught any fish yet" : "This user hasn't caught any fish yet")}
               </Text>
-              {isOwnProfile && activeTab === 'posts' && (
-                <TouchableOpacity 
-                  style={styles.emptyButton}
-                  onPress={() => setShowCreatePostModal(true)}
-                >
-                  <Text style={styles.emptyButtonText}>Create Post</Text>
-                </TouchableOpacity>
-              )}
-              {isOwnProfile && activeTab === 'catchbook' && (
-                <TouchableOpacity 
-                  style={styles.emptyButton}
-                  onPress={() => router.push('/history')}
-                >
-                  <Text style={styles.emptyButtonText}>Identify Your First Fish</Text>
-                </TouchableOpacity>
-              )}
             </View>
           ) : null
         }
@@ -261,48 +186,6 @@ export default function ProfileScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       />
-      
-      <Modal
-        visible={showCreatePostModal}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowCreatePostModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Create New Post</Text>
-            
-            <TouchableOpacity 
-              style={styles.modalOption}
-              onPress={() => {
-                setShowCreatePostModal(false);
-                router.push('/history');
-              }}
-            >
-              <Text style={styles.modalOptionText}>Share from Catchbook</Text>
-              <Text style={styles.modalOptionSubtext}>Post an existing catch</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.modalOption}
-              onPress={() => {
-                setShowCreatePostModal(false);
-                router.push('/camera');
-              }}
-            >
-              <Text style={styles.modalOptionText}>Upload New Photo</Text>
-              <Text style={styles.modalOptionSubtext}>Take or select a new photo</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.modalCancel}
-              onPress={() => setShowCreatePostModal(false)}
-            >
-              <Text style={styles.modalCancelText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }
@@ -345,14 +228,26 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 40,
   },
-  emptyListContent: {
-    flexGrow: 1,
+  sectionsContainer: {
+    flex: 1,
+    flexDirection: 'column',
+  },
+  section: {
+    flex: 1,
+    padding: 16,
+    marginBottom: 20,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: Colors.text,
+    marginBottom: 16,
   },
   tabsContainer: {
     flexDirection: 'row',
     backgroundColor: Colors.card,
     borderRadius: 12,
-    marginBottom: 16,
+    margin: 16,
     padding: 4,
   },
   tab: {
@@ -372,112 +267,33 @@ const styles = StyleSheet.create({
   activeTabText: {
     color: Colors.primary,
   },
-  viewModeContainer: {
+  addCatchButton: {
+    backgroundColor: Colors.primary,
     flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+    marginBottom: 16,
   },
-  viewModeButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  activeViewMode: {
-    backgroundColor: Colors.background,
+  addCatchButtonText: {
+    color: Colors.card,
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
   },
   emptyContainer: {
-    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
-    marginTop: 40,
   },
   emptyText: {
     fontSize: 16,
     color: Colors.textLight,
     textAlign: 'center',
-    marginBottom: 20,
   },
-  emptyButton: {
-    backgroundColor: Colors.primary,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-  },
-  emptyButtonText: {
-    color: Colors.card,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  gridItem: {
-    flex: 1/3,
-    aspectRatio: 1,
-    margin: 1,
-    position: 'relative',
-  },
-  gridImage: {
-    width: '100%',
-    height: '100%',
-  },
-  gridOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    padding: 4,
-  },
-  gridFishName: {
-    color: Colors.card,
-    fontSize: 10,
-    fontWeight: '500',
-    textAlign: 'center',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
-    backgroundColor: Colors.card,
-    borderRadius: 12,
-    padding: 20,
-    margin: 20,
-    width: '80%',
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: Colors.text,
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  modalOption: {
-    backgroundColor: Colors.background,
-    padding: 16,
-    borderRadius: 8,
-    marginBottom: 12,
-  },
-  modalOptionText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: Colors.text,
-  },
-  modalOptionSubtext: {
-    fontSize: 14,
-    color: Colors.textLight,
-    marginTop: 4,
-  },
-  modalCancel: {
-    padding: 16,
-    alignItems: 'center',
-  },
-  modalCancelText: {
-    fontSize: 16,
-    color: Colors.primary,
-    fontWeight: '500',
+  emptyListContent: {
+    flexGrow: 1,
   },
 });

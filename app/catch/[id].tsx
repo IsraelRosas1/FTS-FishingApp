@@ -163,7 +163,12 @@ export default function CatchDetailScreen() {
             if (isTemporary) {
               removeTempCatch(id);
             } else {
-              deleteCatch(id);
+              if (user?.id) {
+                deleteCatch(id, user.id);
+              } else {
+                Alert.alert('Error', 'You must be logged in to delete catches');
+                return;
+              }
             }
             router.replace('/history');
           },

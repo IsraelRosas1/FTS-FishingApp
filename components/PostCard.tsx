@@ -15,19 +15,19 @@ interface PostCardProps {
 
 export default function PostCard({ post, showComments = false }: PostCardProps) {
   const router = useRouter();
-  const [isLiked, setIsLiked] = useState(post.isLiked || false);
   const { likePost, unlikePost, deletePost } = useSocialStore();
   const user = useAuthStore((state) => state.user);
   
   const formattedDate = formatDistanceToNow(new Date(post.createdAt), { addSuffix: true });
   
   const handleLike = () => {
-    if (isLiked) {
-      unlikePost(post.id);
+    if (!user?.id) return;
+    
+    if (post.isLiked) {
+      unlikePost(post.id, user.id);
     } else {
-      likePost(post.id);
+      likePost(post.id, user.id);
     }
-    setIsLiked(!isLiked);
   };
   
   const handleCommentPress = () => {
@@ -81,8 +81,8 @@ export default function PostCard({ post, showComments = false }: PostCardProps) 
           <View style={styles.stat}>
             <Heart 
               size={18} 
-              color={isLiked ? Colors.error : Colors.textLight} 
-              fill={isLiked ? Colors.error : 'transparent'}
+              color={post.isLiked ? Colors.error : Colors.textLight} 
+              fill={post.isLiked ? Colors.error : 'transparent'}
             />
             <Text style={styles.statText}>{post.likes}</Text>
           </View>
@@ -95,16 +95,16 @@ export default function PostCard({ post, showComments = false }: PostCardProps) 
         
         <View style={styles.actionsRow}>
           <TouchableOpacity 
-            style={[styles.actionButton, isLiked && styles.likedButton]} 
+            style={[styles.actionButton, post.isLiked && styles.likedButton]} 
             onPress={handleLike}
           >
             <Heart 
               size={20} 
-              color={isLiked ? Colors.card : Colors.textLight} 
-              fill={isLiked ? Colors.card : 'transparent'}
+              color={post.isLiked ? Colors.card : Colors.textLight} 
+              fill={post.isLiked ? Colors.card : 'transparent'}
             />
-            <Text style={[styles.actionText, isLiked && styles.likedText]}>
-              {isLiked ? 'Liked' : 'Like'}
+            <Text style={[styles.actionText, post.isLiked && styles.likedText]}>
+              {post.isLiked ? 'Liked' : 'Like'}
             </Text>
           </TouchableOpacity>
           
