@@ -230,14 +230,15 @@ export default function CatchDetailScreen() {
       const postImageUrl = catchItem.imageUri.startsWith('http') ? catchItem.imageUri : 
         (isTemporary ? await uploadImage(catchItem.imageUri, generateImagePath(user.id, 'post', `post_${Date.now()}.jpg`)) : catchItem.imageUri);
       
-      createPost(
-        user.id,
-        user.displayName,
-        user.profileImageUrl,
-        catchItem.id,
-        caption,
-        postImageUrl
-      );
+      createPost({
+        userId: user.id,
+        userDisplayName: user.displayName,
+        userProfileImage: user.profileImageUrl,
+        catchId: catchItem.id,
+        content: caption,
+        imageUrl: postImageUrl,
+        createdAt: new Date().toISOString(),
+      });
       
       if (Platform.OS !== 'web') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

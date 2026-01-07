@@ -12,7 +12,7 @@ interface SocialState {
   isLoading: boolean;
   error: string | null;
   loadPosts: (userId?: string) => Promise<void>;
-  createPost: (userId: string, userDisplayName: string, userProfileImage: string | null, catchId: string, caption: string, imageUrl: string) => Promise<void>;
+  createPost: (postData: any) => Promise<void>;
   likePost: (postId: string, userId: string) => Promise<void>;
   unlikePost: (postId: string, userId: string) => Promise<void>;
   addComment: (postId: string, userId: string, userDisplayName: string, userProfileImage: string | null, text: string) => Promise<void>;
@@ -113,17 +113,22 @@ export const useSocialStore = create<SocialState>()((set, get) => ({
     }
   },
   
-  createPost: async (userId, userDisplayName, userProfileImage, catchId, caption, imageUrl) => {
+  createPost: async (postData) => {
     const newPost: Omit<Post, 'id'> = {
-      userId,
-      userDisplayName,
-      userProfileImage,
-      catchId,
-      caption,
-      imageUrl,
+      userId: postData.userId,
+      userDisplayName: postData.userDisplayName || 'Anonymous',
+      userProfileImage: postData.userProfileImage || null,
+      catchId: postData.catchId || null,
+      caption: postData.content || '',
+      imageUrl: postData.imageUrl || null,
+      images: postData.images || [],
+      videoUrl: postData.videoUrl || null,
+      location: postData.location || null,
+      lure: postData.lure || null,
+      fishDetected: postData.fishDetected || [],
       likes: 0,
       comments: 0,
-      createdAt: new Date().toISOString(),
+      createdAt: postData.createdAt || new Date().toISOString(),
     };
     
     try {
@@ -134,6 +139,7 @@ export const useSocialStore = create<SocialState>()((set, get) => ({
       }));
     } catch (error) {
       console.error('Error creating post:', error);
+      throw error;
     }
   },
   

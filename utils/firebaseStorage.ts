@@ -46,6 +46,35 @@ export const deleteImage = async (url: string): Promise<void> => {
   }
 };
 
+export const uploadVideo = async (uri: string, path: string): Promise<string> => {
+  try {
+    // Convert URI to blob
+    const response = await fetch(uri);
+    const blob = await response.blob();
+
+    // Create storage reference
+    const storageRef = ref(storage, path);
+
+    // Upload blob with video content type
+    const snapshot = await uploadBytes(storageRef, blob, {
+      contentType: 'video/mp4'
+    });
+
+    // Get download URL
+    const downloadURL = await getDownloadURL(snapshot.ref);
+
+    return downloadURL;
+  } catch (error) {
+    console.error('Error uploading video:', error);
+    throw error;
+  }
+};
+
+export const generateVideoPath = (userId: string, type: 'post', fileName: string): string => {
+  const timestamp = Date.now();
+  return `users/${userId}/${type}/videos/${timestamp}_${fileName}`;
+};
+
 export const generateImagePath = (userId: string, type: 'catch' | 'post' | 'profile', fileName: string): string => {
   const timestamp = Date.now();
   return `users/${userId}/${type === 'profile' ? 'profile' : `${type}s`}/${timestamp}_${fileName}`;

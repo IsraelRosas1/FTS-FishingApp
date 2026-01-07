@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { StyleSheet, View, Text, Image, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { formatDistanceToNow } from 'date-fns';
-import { Heart, MessageCircle, Share2, Trash2 } from 'lucide-react-native';
+import { Heart, MessageCircle, Share2, Trash2, MapPin, Package, Play, Pause } from 'lucide-react-native';
+import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av';
 import Colors from '@/constants/colors';
 import { Post } from '@/types/user';
 import { useSocialStore } from '@/store/socialStore';
@@ -17,6 +18,8 @@ export default function PostCard({ post, showComments = false }: PostCardProps) 
   const router = useRouter();
   const { likePost, unlikePost, deletePost } = useSocialStore();
   const user = useAuthStore((state) => state.user);
+  const videoRef = useRef<Video>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
   
   const formattedDate = formatDistanceToNow(new Date(post.createdAt), { addSuffix: true });
   
@@ -45,6 +48,24 @@ export default function PostCard({ post, showComments = false }: PostCardProps) 
       router.push(`/user/${post.userId}`);
     }
   };
+
+  const handleVideoPress = async () => {
+    if (!videoRef.current) return;
+    
+    if (isPlaying) {
+      await videoRef.current.pauseAsync();
+      setIsPlaying(false);
+    } else {
+      await videoRef.current.playAsync();
+      setIsPlaying(true);
+    }
+  };
+
+  const onPlaybackStatusUpdate = (status: AVPlaybackStatus) => {
+    if (status.isLoaded) {
+      setIsPlaying(status.isPlaying);
+    }
+  };
   
   return (
     <View style={styles.card}>
@@ -68,14 +89,68 @@ export default function PostCard({ post, showComments = false }: PostCardProps) 
         )}
       </View>
       
-      <Image 
-        source={{ uri: post.imageUrl }} 
-        style={styles.postImage}
-        resizeMode="cover"
-      />
+      {post.imageUrl && (
+        <Image 
+          source={{ uri: post.imageUrl }} 
+          style={styles.postImage}
+          resizeMode="cover"
+        />
+      )}
+      
+      {post.videoUrl && (
+        <View style={styles.videoContainer}>
+          <Video
+            ref={videoRef}
+            source={{ uri: post.videoUrl }}
+            style={styles.video}
+            resizeMode={ResizeMode.CONTAIN}
+            isLooping
+            onPlaybackStatusUpdate={onPlaybackStatusUpdate}
+          />
+          <TouchableOpacity 
+            style={styles.videoPlayButton} 
+            onPress={handleVideoPress}
+          >
+            {isPlaying ? (
+              <Pause size={40} color={Colors.card} />
+            ) : (
+              <Play size={40} color={Colors.card} />
+            )}
+          </TouchableOpacity>
+        </View>
+      )}
       
       <View style={styles.content}>
         <Text style={styles.caption}>{post.caption}</Text>
+        
+        {post.fishDetected && post.fishDetected.length > 0 && (
+          <View style={styles.fishDetectedContainer}>
+            <Text style={styles.fishDetectedTitle}>🐟 Fish Detected:</Text>
+            {post.fishDetected.map((fish, index) => (
+              <Text key={index} style={styles.fishDetectedText}>
+                {fish.species} ({fish.confidence}% confidence)
+              </Text>
+            ))}
+          </View>
+        )}
+        
+        {post.lure && (
+          <View style={styles.lureContainer}>
+            <Package size={16} color={Colors.primary} />
+            <Text style={styles.lureText}>
+              {post.lure.name} • {post.lure.type} • {post.lure.color}
+            </Text>
+          </View>
+        )}
+        
+        {post.location && (
+          <View style={styles.locationContainer}>
+            <MapPin size={16} color={Colors.textLight} />
+            <Text style={styles.locationText}>
+              {post.location.latitude.toFixed(4)}, {post.location.longitude.toFixed(4)}
+            </Text>
+          </View>
+        )}
         
         <View style={styles.statsRow}>
           <View style={styles.stat}>
@@ -170,13 +245,89 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 300,
   },
+  videoContainer: {
+    width: '100%',
+    height: 300,
+    backgroundColor: '#000',
+    position: 'relative',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  video: {
+    width: '100%',
+    height: '100%',
+  },
+  videoPlayButton: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: [{ translateX: -30 }, { translateY: -30 }],
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  videoPlaceholder: {
+    width: '100%',
+    height: 200,
+    backgroundColor: Colors.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  videoText: {
+    fontSize: 16,
+    color: Colors.textLight,
+    fontWeight: '500',
+  },
   content: {
     padding: 16,
   },
   caption: {
     fontSize: 16,
     color: Colors.text,
-    marginBottom: 16,
+    marginBottom: 12,
+  },
+  fishDetectedContainer: {
+    backgroundColor: Colors.background,
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  fishDetectedTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: 4,
+  },
+  fishDetectedText: {
+    fontSize: 13,
+    color: Colors.primary,
+    marginLeft: 8,
+  },
+  lureContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.background,
+    padding: 8,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  lureText: {
+    fontSize: 13,
+    color: Colors.text,
+    marginLeft: 8,
+  },
+  locationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  locationText: {
+    fontSize: 12,
+    color: Colors.textLight,
+    marginLeft: 4,
   },
   statsRow: {
     flexDirection: 'row',

@@ -15,9 +15,25 @@ export interface Post {
   userId: string;
   userDisplayName: string;
   userProfileImage: string | null;
-  catchId: string;
+  catchId?: string | null;
   caption: string;
-  imageUrl: string;
+  imageUrl: string | null;
+  images?: string[];
+  videoUrl?: string | null;
+  location?: {
+    latitude: number;
+    longitude: number;
+  } | null;
+  lure?: {
+    name: string;
+    type: string;
+    color: string;
+    size: string;
+  } | null;
+  fishDetected?: Array<{
+    species: string;
+    confidence: number;
+  }>;
   likes: number;
   comments: number;
   createdAt: string;
