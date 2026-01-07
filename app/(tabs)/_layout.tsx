@@ -1,6 +1,6 @@
 import React from "react";
 import { Tabs } from "expo-router";
-import { Home, Plus, User, Map } from "lucide-react-native";
+import { Home, Plus, User, Map, Cloud } from "lucide-react-native";
 import Colors from "@/constants/colors";
 
 export default function TabLayout() {
@@ -46,6 +46,15 @@ export default function TabLayout() {
           title: "Fishing Map",
           tabBarLabel: "Map",
           tabBarIcon: ({ color }) => <Map size={24} color={color} />,
+        }}
+      />
+      
+      <Tabs.Screen
+        name="weather"
+        options={{
+          title: "Weather Conditions",
+          tabBarLabel: "Weather",
+          tabBarIcon: ({ color }) => <Cloud size={24} color={color} />,
         }}
       />
       
