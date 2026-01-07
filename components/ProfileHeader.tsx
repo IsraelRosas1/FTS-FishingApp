@@ -79,9 +79,8 @@ export default function ProfileHeader({ user, isCurrentUser = false, onEditProfi
 const styles = StyleSheet.create({
   container: {
     padding: 16,
-    backgroundColor: Colors.card,
-    borderRadius: 12,
-    marginBottom: 16,
+    backgroundColor: Colors.background,
+    marginBottom: 0,
   },
   headerRow: {
     flexDirection: 'row',

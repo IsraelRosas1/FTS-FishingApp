@@ -31,14 +31,6 @@ export default function TabLayout() {
         }}
       />
       
-      <Tabs.Screen
-        name="history"
-        options={{
-          title: "Identify Fish",
-          tabBarLabel: "Identify",
-          tabBarIcon: ({ color }) => <Plus size={24} color={color} />,
-        }}
-      />
       
       <Tabs.Screen
         name="map"
@@ -49,6 +41,15 @@ export default function TabLayout() {
         }}
       />
       
+      <Tabs.Screen
+        name="history"
+        options={{
+          title: "Identify Fish",
+          tabBarLabel: "Add",
+          tabBarIcon: ({ color }) => <Plus size={24} color={color} />,
+        }}
+      />
+            
       <Tabs.Screen
         name="weather"
         options={{

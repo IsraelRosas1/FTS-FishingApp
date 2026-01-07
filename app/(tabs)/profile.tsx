@@ -119,8 +119,8 @@ export default function ProfileScreen() {
   const currentData = getCurrentData();
   const isEmpty = currentData.length === 0;
   
-  return (
-    <View style={styles.container}>
+  const renderHeader = () => (
+    <>
       <ProfileHeader 
         user={profileUser!} 
         isCurrentUser={isOwnProfile}
@@ -165,10 +165,16 @@ export default function ProfileScreen() {
           <Text style={styles.addCatchButtonText}>Add New Catch</Text>
         </TouchableOpacity>
       )}
+    </>
+  );
+
+  return (
+    <View style={styles.container}>
       <FlatList
         data={currentData}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
+        ListHeaderComponent={renderHeader}
         ListEmptyComponent={
           isEmpty ? (
             <View style={styles.emptyContainer}>
@@ -185,6 +191,7 @@ export default function ProfileScreen() {
           isEmpty && styles.emptyListContent
         ]}
         showsVerticalScrollIndicator={false}
+        stickyHeaderIndices={[0]}
       />
     </View>
   );
@@ -225,7 +232,6 @@ const styles = StyleSheet.create({
     marginTop: 40,
   },
   listContent: {
-    padding: 16,
     paddingBottom: 40,
   },
   sectionsContainer: {
@@ -245,19 +251,20 @@ const styles = StyleSheet.create({
   },
   tabsContainer: {
     flexDirection: 'row',
-    backgroundColor: Colors.card,
-    borderRadius: 12,
-    margin: 16,
-    padding: 4,
+    backgroundColor: Colors.background,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+    paddingHorizontal: 0,
   },
   tab: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: 14,
     alignItems: 'center',
-    borderRadius: 8,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
   },
   activeTab: {
-    backgroundColor: Colors.background,
+    borderBottomColor: Colors.primary,
   },
   tabText: {
     fontSize: 14,
@@ -275,7 +282,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 8,
     alignSelf: 'flex-start',
-    marginBottom: 16,
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 12,
   },
   addCatchButtonText: {
     color: Colors.card,

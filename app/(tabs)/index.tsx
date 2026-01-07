@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, View, FlatList, ActivityIndicator, Text, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Users, Trophy, LogOut } from 'lucide-react-native';
+import { Users, Trophy } from 'lucide-react-native';
 import { useSocialStore } from '@/store/socialStore';
 import { useAuthStore } from '@/store/authStore';
 import PostCard from '@/components/PostCard';
@@ -19,7 +19,6 @@ export default function FeedScreen() {
   const loadPosts = useSocialStore((state) => state.loadPosts);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const user = useAuthStore((state) => state.user);
-  const signOut = useAuthStore((state) => state.signOut);
   
   useEffect(() => {
     if (isAuthenticated && user?.id) {
@@ -64,18 +63,7 @@ export default function FeedScreen() {
   
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.signOutButton}
-          onPress={() => {
-            signOut();
-            router.replace('/(auth)');
-          }}
-        >
-          <LogOut size={20} color={Colors.error} />
-          <Text style={styles.signOutText}>Sign Out</Text>
-        </TouchableOpacity>
-      </View>
+
       
       <View style={styles.toggleContainer}>
         <TouchableOpacity 
@@ -105,26 +93,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    paddingHorizontal: 16,
-    paddingTop: 16,
-  },
-  signOutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.card,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  signOutText: {
-    color: Colors.error,
-    fontSize: 14,
-    fontWeight: '600',
-    marginLeft: 6,
-  },
+
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',

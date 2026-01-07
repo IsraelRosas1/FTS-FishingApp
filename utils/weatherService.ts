@@ -70,7 +70,7 @@ const OPEN_METEO_BASE_URL = 'https://api.open-meteo.com/v1/forecast';
 export async function fetchWeatherData(
   lat: number,
   lon: number,
-  days = 3
+  days = 7
 ): Promise<WeatherData> {
   const url = new URL(OPEN_METEO_BASE_URL);
   url.searchParams.set('latitude', lat.toString());
@@ -247,7 +247,7 @@ export function analyzeFishingConditions(
  * @param weatherData Weather data
  * @param days Number of days
  */
-export function getHourlyForecast(weatherData: WeatherData, days: number = 3) {
+export function getHourlyForecast(weatherData: WeatherData, days: number = 7) {
   const now = new Date();
   const forecasts = [];
 

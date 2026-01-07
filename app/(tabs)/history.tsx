@@ -378,7 +378,7 @@ Take a clear photo instead of video for more reliable fish identification.`
           <View style={styles.iconContainer}>
             <ImageIcon size={40} color={Colors.primary} />
           </View>
-          <Text style={styles.optionTitle}>Upload Picture</Text>
+          <Text style={styles.optionTitle}>Add Post</Text>
           <Text style={styles.optionDescription}>
             Choose an existing photo from your gallery
           </Text>

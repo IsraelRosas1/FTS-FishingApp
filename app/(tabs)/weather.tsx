@@ -91,9 +91,9 @@ export default function WeatherScreen() {
       const lat = location.coords.latitude;
       const lon = location.coords.longitude;
 
-      const data = await fetchWeatherData(lat, lon, 3);
+      const data = await fetchWeatherData(lat, lon, 7);
       const conditions = analyzeFishingConditions(data);
-      const forecast = getHourlyForecast(data, 3);
+      const forecast = getHourlyForecast(data, 7);
 
       setWeatherData(data);
       setFishingConditions(conditions);
@@ -211,7 +211,7 @@ export default function WeatherScreen() {
 
     return (
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>3-Day Hourly Forecast</Text>
+        <Text style={styles.sectionTitle}>7-Day Hourly Forecast</Text>
 
         {hourlyForecast.map((day, dayIndex) => (
           <View key={dayIndex} style={styles.dayContainer}>
