@@ -18,7 +18,7 @@ import * as Haptics from 'expo-haptics';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import * as Location from 'expo-location';
 import Colors from '@/constants/colors';
-import { recognizeFish } from '@/utils/fishRecognition';
+import { recognizeFish, analyzeFishInVideo } from '@/utils/fishRecognition';
 import { useAuthStore } from '@/store/authStore';
 import { useSocialStore } from '@/store/socialStore';
 import { uploadImage, uploadVideo, generateImagePath, generateVideoPath } from '@/utils/firebaseStorage';
@@ -56,6 +56,8 @@ export default function CreatePostScreen() {
   const [showLureMenu, setShowLureMenu] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [fishRecognitionResults, setFishRecognitionResults] = useState<any[]>([]);
+  const [videoFishData, setVideoFishData] = useState<any>(null);
+  const [processingProgress, setProcessingProgress] = useState({ current: 0, total: 0 });
 
   const handleClose = () => {
     if (postText || images.length > 0 || videoUri || selectedLure) {
@@ -256,7 +258,74 @@ export default function CreatePostScreen() {
     });
 
     if (!result.canceled) {
-      setVideoUri(result.assets[0].uri);
+      const videoUri = result.assets[0].uri;
+      setVideoUri(videoUri);
+      
+      // Automatically analyze video for fish detection
+      await analyzeFishInVideoFile(videoUri);
+    }
+  };
+
+  const analyzeFishInVideoFile = async (videoUri: string) => {
+    setIsProcessing(true);
+    setVideoFishData(null);
+    
+    try {
+      Alert.alert(
+        'Analyzing Video',
+        'Detecting fish species in your video...',
+        [{ text: 'OK' }]
+      );
+
+      const fishData = await analyzeFishInVideo(
+        videoUri,
+        (progress, current, total) => {
+          setProcessingProgress({ current, total });
+        }
+      );
+
+      if (fishData) {
+        setVideoFishData(fishData);
+        
+        // Show detection results
+        Alert.prompt(
+          'Fish Detected in Video!',
+          `Species: ${fishData.name}\nConfidence: ${fishData.confidence}%\n\nWould you like to edit the species name?`,
+          [
+            {
+              text: 'Keep',
+              style: 'cancel',
+            },
+            {
+              text: 'Edit',
+              onPress: (newName?: string) => {
+                if (newName && newName.trim()) {
+                  setVideoFishData({
+                    ...fishData,
+                    name: newName.trim(),
+                  });
+                }
+              },
+            },
+          ],
+          'plain-text',
+          fishData.name
+        );
+      } else {
+        Alert.alert(
+          'No Fish Detected',
+          'Could not detect any fish in the video. You can still post the video.'
+        );
+      }
+    } catch (error) {
+      console.error('Error analyzing video:', error);
+      Alert.alert(
+        'Analysis Failed',
+        'Could not analyze the video for fish detection. You can still post the video.'
+      );
+    } finally {
+      setIsProcessing(false);
+      setProcessingProgress({ current: 0, total: 0 });
     }
   };
 
@@ -335,12 +404,20 @@ export default function CreatePostScreen() {
           color: selectedLure.color,
           size: selectedLure.size,
         } : null,
-        fishDetected: fishRecognitionResults
-          .filter((r) => r.fishData.confidence > 50)
-          .map((r) => ({
-            species: r.fishData.name,
-            confidence: r.fishData.confidence,
-          })),
+        fishDetected: [
+          // Fish from images
+          ...fishRecognitionResults
+            .filter((r) => r.fishData.confidence > 50)
+            .map((r) => ({
+              species: r.fishData.name,
+              confidence: r.fishData.confidence,
+            })),
+          // Fish from video
+          ...(videoFishData && videoFishData.confidence > 50 ? [{
+            species: videoFishData.name,
+            confidence: videoFishData.confidence,
+          }] : [])
+        ],
         createdAt: new Date().toISOString(),
       };
 
@@ -425,10 +502,28 @@ export default function CreatePostScreen() {
             <View style={styles.videoPreview}>
               <VideoIcon size={48} color={Colors.primary} />
               <Text style={styles.videoText}>Video attached</Text>
+              {videoFishData && videoFishData.confidence > 30 && (
+                <View style={styles.videoFishBadge}>
+                  <Text style={styles.fishBadgeText}>
+                    🐟 {videoFishData.name}
+                  </Text>
+                  <Text style={styles.fishBadgeSubtext}>
+                    {videoFishData.confidence}% confidence
+                  </Text>
+                </View>
+              )}
+              {processingProgress.total > 0 && (
+                <Text style={styles.progressText}>
+                  Analyzing frame {processingProgress.current}/{processingProgress.total}
+                </Text>
+              )}
             </View>
             <TouchableOpacity
               style={styles.removeVideoButton}
-              onPress={() => setVideoUri(null)}
+              onPress={() => {
+                setVideoUri(null);
+                setVideoFishData(null);
+              }}
             >
               <X size={16} color={Colors.card} />
             </TouchableOpacity>
@@ -632,6 +727,19 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     marginTop: 12,
     fontWeight: '500',
+  },
+  videoFishBadge: {
+    backgroundColor: 'rgba(42, 157, 244, 0.9)',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    marginTop: 12,
+    alignItems: 'center',
+  },
+  progressText: {
+    fontSize: 12,
+    color: Colors.textLight,
+    marginTop: 8,
   },
   removeVideoButton: {
     position: 'absolute',

@@ -121,18 +121,18 @@ export default function PostCard({ post, showComments = false }: PostCardProps) 
       )}
       
       <View style={styles.content}>
-        <Text style={styles.caption}>{post.caption}</Text>
-        
         {post.fishDetected && post.fishDetected.length > 0 && (
-          <View style={styles.fishDetectedContainer}>
-            <Text style={styles.fishDetectedTitle}>🐟 Fish Detected:</Text>
-            {post.fishDetected.map((fish, index) => (
-              <Text key={index} style={styles.fishDetectedText}>
-                {fish.species} ({fish.confidence}% confidence)
+          <View style={styles.fishDetectedBanner}>
+            <View style={styles.fishDetectedInfo}>
+              <Text style={styles.fishSpeciesName}>
+                {post.fishDetected[0].species}
               </Text>
-            ))}
+
+            </View>
           </View>
         )}
+        
+        <Text style={styles.caption}>{post.caption}</Text>
         
         {post.lure && (
           <View style={styles.lureContainer}>
@@ -283,6 +283,34 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 16,
+  },
+  fishDetectedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(42, 157, 244, 0.15)',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: Colors.primary,
+  },
+  fishIcon: {
+    fontSize: 32,
+    marginRight: 12,
+  },
+  fishDetectedInfo: {
+    flex: 1,
+  },
+  fishSpeciesName: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.primary,
+    marginBottom: 2,
+  },
+  fishConfidence: {
+    fontSize: 13,
+    color: Colors.text,
+    fontWeight: '500',
   },
   caption: {
     fontSize: 16,
