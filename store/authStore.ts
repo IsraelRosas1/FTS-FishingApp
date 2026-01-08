@@ -11,6 +11,7 @@ import {
   signOut as firebaseSignOut 
 } from 'firebase/auth';
 import { doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
+import { deleteImage } from '@/utils/firebaseStorage';
 
 interface AuthState {
   user: User | null;
@@ -93,6 +94,17 @@ export const useAuthStore = create<AuthState>()(
         if (!currentUser) return;
 
         try {
+          // If updating profile image, delete the old one from Storage
+          if (updates.profileImageUrl && currentUser.profileImageUrl) {
+            try {
+              await deleteImage(currentUser.profileImageUrl);
+              console.log('Old profile image deleted from Storage');
+            } catch (error) {
+              console.warn('Failed to delete old profile image:', error);
+              // Don't fail the update if old image deletion fails
+            }
+          }
+
           // Update Firestore
           const userRef = doc(db, "users", currentUser.id);
           await updateDoc(userRef, updates);
@@ -103,6 +115,7 @@ export const useAuthStore = create<AuthState>()(
           }));
         } catch (error: any) {
           console.error("Failed to update profile:", error);
+          throw error;
         }
       },
     }),

@@ -5,6 +5,7 @@ import { useCatchStore } from './catchStore';
 // FIREBASE IMPORTS
 import { db } from '@/src/firebaseConfig';
 import { collection, getDocs, addDoc, doc, updateDoc, deleteDoc, query, where, orderBy, getDoc } from 'firebase/firestore';
+import { deleteImage, deleteVideo } from '@/utils/firebaseStorage';
 
 interface SocialState {
   posts: Post[];
@@ -278,28 +279,91 @@ export const useSocialStore = create<SocialState>()((set, get) => ({
       const docRef = await addDoc(collection(db, 'comments'), newComment);
       const commentWithId: Comment = { id: docRef.id, ...newComment };
       
-      set((state) => ({
-        comments: [...state.comments, commentWithId],
-        posts: state.posts.map((post) => 
-          post.id === postId 
-            ? { ...post, comments: post.comments + 1 } 
-            : post
-        ),
-      }));
+      // Update post's comment count in Firestore
+      const postRef = doc(db, 'posts', postId);
+      const post = get().posts.find(p => p.id === postId);
+      if (post) {
+        const newCommentCount = post.comments + 1;
+        await updateDoc(postRef, { comments: newCommentCount });
+        
+        set((state) => ({
+          comments: [...state.comments, commentWithId],
+          posts: state.posts.map((p) => 
+            p.id === postId 
+              ? { ...p, comments: newCommentCount } 
+              : p
+          ),
+        }));
+      } else {
+        // If post not in local state, just add comment
+        set((state) => ({
+          comments: [...state.comments, commentWithId],
+        }));
+      }
     } catch (error) {
       console.error('Error adding comment:', error);
+      throw error;
     }
   },
   
   deletePost: async (postId) => {
     try {
+      // Get the post to access its media URLs before deleting
+      const post = get().posts.find(p => p.id === postId);
+      
+      // Delete from Firestore first
       await deleteDoc(doc(db, 'posts', postId));
+      
+      // Delete associated media from Firebase Storage
+      if (post) {
+        // Delete all images
+        if (post.images && post.images.length > 0) {
+          for (const imageUrl of post.images) {
+            try {
+              await deleteImage(imageUrl);
+            } catch (error) {
+              console.error('Error deleting image:', error);
+            }
+          }
+        } else if (post.imageUrl) {
+          // Delete single image if images array doesn't exist
+          try {
+            await deleteImage(post.imageUrl);
+          } catch (error) {
+            console.error('Error deleting image:', error);
+          }
+        }
+        
+        // Delete video if exists
+        if (post.videoUrl) {
+          try {
+            await deleteVideo(post.videoUrl);
+          } catch (error) {
+            console.error('Error deleting video:', error);
+          }
+        }
+      }
+      
+      // Delete all comments associated with this post from Firestore
+      const commentsQuery = query(collection(db, 'comments'), where('postId', '==', postId));
+      const commentsSnapshot = await getDocs(commentsQuery);
+      const deleteCommentPromises = commentsSnapshot.docs.map(doc => deleteDoc(doc.ref));
+      await Promise.all(deleteCommentPromises);
+      
+      // Delete all likes associated with this post from Firestore
+      const likesQuery = query(collection(db, 'postLikes'), where('postId', '==', postId));
+      const likesSnapshot = await getDocs(likesQuery);
+      const deleteLikePromises = likesSnapshot.docs.map(doc => deleteDoc(doc.ref));
+      await Promise.all(deleteLikePromises);
+      
+      // Update local state
       set((state) => ({
         posts: state.posts.filter((post) => post.id !== postId),
         comments: state.comments.filter((comment) => comment.postId !== postId),
       }));
     } catch (error) {
       console.error('Error deleting post:', error);
+      throw error;
     }
   },
   

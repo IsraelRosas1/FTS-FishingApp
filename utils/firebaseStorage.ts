@@ -26,6 +26,12 @@ export const uploadImage = async (uri: string, path: string): Promise<string> =>
 
 export const deleteImage = async (url: string): Promise<void> => {
   try {
+    // Skip if not a Firebase Storage URL
+    if (!url.includes('firebasestorage.googleapis.com')) {
+      console.log('Not a Firebase Storage URL, skipping deletion');
+      return;
+    }
+
     // Extract the path from the Firebase Storage URL
     const path = url.split('/o/')[1]?.split('?')[0];
     if (!path) {
@@ -40,8 +46,38 @@ export const deleteImage = async (url: string): Promise<void> => {
 
     // Delete the file
     await deleteObject(storageRef);
+    console.log('Successfully deleted image from Firebase Storage');
   } catch (error) {
     console.error('Error deleting image:', error);
+    throw error;
+  }
+};
+
+export const deleteVideo = async (url: string): Promise<void> => {
+  try {
+    // Skip if not a Firebase Storage URL
+    if (!url.includes('firebasestorage.googleapis.com')) {
+      console.log('Not a Firebase Storage URL, skipping deletion');
+      return;
+    }
+
+    // Extract the path from the Firebase Storage URL
+    const path = url.split('/o/')[1]?.split('?')[0];
+    if (!path) {
+      throw new Error('Invalid Firebase Storage URL');
+    }
+
+    // Decode the path
+    const decodedPath = decodeURIComponent(path);
+
+    // Create storage reference
+    const storageRef = ref(storage, decodedPath);
+
+    // Delete the file
+    await deleteObject(storageRef);
+    console.log('Successfully deleted video from Firebase Storage');
+  } catch (error) {
+    console.error('Error deleting video:', error);
     throw error;
   }
 };
