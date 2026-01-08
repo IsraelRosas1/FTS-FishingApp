@@ -12,6 +12,8 @@ interface SocialState {
   isLoading: boolean;
   error: string | null;
   loadPosts: (userId?: string) => Promise<void>;
+  loadUserPosts: (userId: string) => Promise<Post[]>;
+  fetchUserProfile: (userId: string) => Promise<any | null>;
   createPost: (postData: any) => Promise<void>;
   likePost: (postId: string, userId: string) => Promise<void>;
   unlikePost: (postId: string, userId: string) => Promise<void>;
@@ -110,6 +112,45 @@ export const useSocialStore = create<SocialState>()((set, get) => ({
       set({ posts, isLoading: false });
     } catch (error: any) {
       set({ error: error.message, isLoading: false });
+    }
+  },
+
+  loadUserPosts: async (userId: string) => {
+    try {
+      // Query posts by userId only (no orderBy to avoid composite index requirement)
+      const postsQuery = query(
+        collection(db, 'posts'), 
+        where('userId', '==', userId)
+      );
+      const querySnapshot = await getDocs(postsQuery);
+      
+      const posts: Post[] = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      } as Post));
+      
+      // Sort by createdAt in memory
+      posts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      
+      return posts;
+    } catch (error: any) {
+      console.error('Error loading user posts:', error);
+      return [];
+    }
+  },
+
+  fetchUserProfile: async (userId: string) => {
+    try {
+      const userDocRef = doc(db, 'users', userId);
+      const userDoc = await getDoc(userDocRef);
+      
+      if (userDoc.exists()) {
+        return { id: userDoc.id, ...userDoc.data() };
+      }
+      return null;
+    } catch (error: any) {
+      console.error('Error fetching user profile:', error);
+      return null;
     }
   },
   

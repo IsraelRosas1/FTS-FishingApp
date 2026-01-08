@@ -162,7 +162,7 @@ export default function CreatePostScreen() {
           await new Promise<void>((resolve) => {
             Alert.prompt(
               'Fish Detected!',
-              `Species: ${result.fishData.name}\nConfidence: ${result.fishData.confidence}%\n\nWould you like to edit the species name?`,
+              `Species: ${result.fishData.name}\n\nWould you like to edit the species name?`,
               [
                 {
                   text: 'Keep',
@@ -209,7 +209,7 @@ export default function CreatePostScreen() {
 
     Alert.prompt(
       'Edit Fish Species',
-      `Current: ${result.fishData.name}\nConfidence: ${result.fishData.confidence}%`,
+      `Current: ${result.fishData.name}`,
       [
         {
           text: 'Cancel',
@@ -404,7 +404,7 @@ export default function CreatePostScreen() {
                         🐟 {fishRecognitionResults[index].fishData.name}
                       </Text>
                       <Text style={styles.fishBadgeSubtext}>
-                        Tap to edit • {fishRecognitionResults[index].fishData.confidence}%
+                        Tap to edit
                       </Text>
                     </TouchableOpacity>
                   )}
