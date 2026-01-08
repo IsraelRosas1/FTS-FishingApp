@@ -19,7 +19,7 @@ interface SocialState {
   unlikePost: (postId: string, userId: string) => Promise<void>;
   addComment: (postId: string, userId: string, userDisplayName: string, userProfileImage: string | null, text: string) => Promise<void>;
   deletePost: (postId: string) => Promise<void>;
-  deleteComment: (commentId: string) => void;
+  deleteComment: (commentId: string) => Promise<void>;
   fetchPostComments: (postId: string) => Promise<Comment[]>;
 }
 
@@ -303,28 +303,49 @@ export const useSocialStore = create<SocialState>()((set, get) => ({
     }
   },
   
-  deleteComment: (commentId) => {
-    const comment = get().comments.find((c) => c.id === commentId);
-    if (!comment) return;
-    
-    set((state) => ({
-      comments: state.comments.filter((c) => c.id !== commentId),
-      posts: state.posts.map((post) => 
-        post.id === comment.postId 
-          ? { ...post, comments: Math.max(0, post.comments - 1) } 
-          : post
-      ),
-    }));
+  deleteComment: async (commentId) => {
+    try {
+      // Delete from Firestore
+      await deleteDoc(doc(db, 'comments', commentId));
+      
+      // Update local state
+      const comment = get().comments.find((c) => c.id === commentId);
+      if (!comment) return;
+      
+      set((state) => ({
+        comments: state.comments.filter((c) => c.id !== commentId),
+        posts: state.posts.map((post) => 
+          post.id === comment.postId 
+            ? { ...post, comments: Math.max(0, post.comments - 1) } 
+            : post
+        ),
+      }));
+      
+      // Also update the post's comment count in Firestore
+      const postRef = doc(db, 'posts', comment.postId);
+      const post = get().posts.find(p => p.id === comment.postId);
+      if (post) {
+        await updateDoc(postRef, { comments: Math.max(0, post.comments - 1) });
+      }
+    } catch (error) {
+      console.error('Error deleting comment:', error);
+      throw error;
+    }
   },
   
   fetchPostComments: async (postId) => {
     try {
-      const commentsQuery = query(collection(db, 'comments'), where('postId', '==', postId), orderBy('createdAt', 'asc'));
+      // Query without orderBy to avoid composite index requirement
+      const commentsQuery = query(collection(db, 'comments'), where('postId', '==', postId));
       const querySnapshot = await getDocs(commentsQuery);
       const comments: Comment[] = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
       } as Comment));
+      
+      // Sort by createdAt in memory
+      comments.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      
       return comments;
     } catch (error) {
       console.error('Error fetching comments:', error);

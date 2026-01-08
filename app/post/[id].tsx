@@ -64,6 +64,14 @@ export default function PostDetailScreen() {
     }
   };
   
+  const handleCommentDeleted = async () => {
+    // Reload comments after deletion
+    if (id) {
+      const updatedComments = await fetchPostComments(id);
+      setComments(updatedComments);
+    }
+  };
+  
   return (
     <KeyboardAvoidingView 
       style={styles.container}
@@ -73,7 +81,12 @@ export default function PostDetailScreen() {
       <FlatList
         data={comments}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <CommentItem comment={item} />}
+        renderItem={({ item }) => (
+          <CommentItem 
+            comment={item} 
+            onDelete={handleCommentDeleted}
+          />
+        )}
         ListHeaderComponent={
           <>
             <PostCard post={post} showComments={true} />
