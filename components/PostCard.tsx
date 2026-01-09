@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { StyleSheet, View, Text, Image, TouchableOpacity, Modal, Dimensions } from 'react-native';
+import { StyleSheet, View, Text, Image, TouchableOpacity, Modal, Dimensions, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { formatDistanceToNow } from 'date-fns';
 import { Heart, MessageCircle, Share2, Trash2, MapPin, Package, Play, Pause, X, Maximize2 } from 'lucide-react-native';
@@ -51,7 +51,21 @@ export default function PostCard({ post, showComments = false, allowDelete = tru
   };
   
   const handleDelete = () => {
-    deletePost(post.id);
+    Alert.alert(
+      'Delete Post',
+      'Are you sure you want to delete this post? This action cannot be undone.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => deletePost(post.id)
+        }
+      ]
+    );
   };
   
   const handleProfilePress = () => {

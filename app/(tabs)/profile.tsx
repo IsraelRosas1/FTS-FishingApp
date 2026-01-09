@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, FlatList, Text, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { StyleSheet, View, FlatList, Text, TouchableOpacity, Animated, ScrollView, Image, Dimensions } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { Plus } from 'lucide-react-native';
+import { Plus, Play } from 'lucide-react-native';
 import { useAuthStore } from '@/store/authStore';
 import { useSocialStore } from '@/store/socialStore';
 import { useCatchStore } from '@/store/catchStore';
@@ -26,6 +26,8 @@ export default function ProfileScreen() {
   const [profileUser, setProfileUser] = useState(currentUser);
   const [isOwnProfile, setIsOwnProfile] = useState(!id);
   const [activeTab, setActiveTab] = useState<'posts' | 'catchbook'>('posts');
+  const [showTopBar, setShowTopBar] = useState(false);
+  const scrollY = useRef(new Animated.Value(0)).current;
   
   const loadOtherUserProfile = async (userId: string) => {
     try {
@@ -103,96 +105,156 @@ export default function ProfileScreen() {
   };
   
   const userPosts = posts.filter(post => post.userId === profileUser?.id);
-  
-  const renderItem = ({ item }: { item: Post | Catch }) => {
-    if (activeTab === 'posts') {
-      return <PostCard post={item as Post} />;
-    } else {
-      return <CatchCard item={item as Catch} showDelete={isOwnProfile} />;
+  const currentData = activeTab === 'posts' ? userPosts : catches;
+
+  const handleScroll = Animated.event(
+    [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+    {
+      useNativeDriver: false,
+      listener: (event: any) => {
+        const offsetY = event.nativeEvent.contentOffset.y;
+        setShowTopBar(offsetY > 200);
+      },
     }
-  };
-  
-  const getCurrentData = (): (Post | Catch)[] => {
-    return activeTab === 'posts' ? userPosts : catches;
-  };
-  
-  const currentData = getCurrentData();
-  const isEmpty = currentData.length === 0;
-  
-  const renderHeader = () => (
-    <>
-      <ProfileHeader 
-        user={profileUser!} 
-        isCurrentUser={isOwnProfile}
-        onEditProfile={handleEditProfile}
-      />
-      <View style={styles.tabsContainer}>
-        <TouchableOpacity 
-          style={[
-            styles.tab, 
-            activeTab === 'posts' && styles.activeTab
-          ]}
-          onPress={() => setActiveTab('posts')}
-        >
-          <Text style={[
-            styles.tabText,
-            activeTab === 'posts' && styles.activeTabText
-          ]}>
-            Posts ({userPosts.length})
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[
-            styles.tab, 
-            activeTab === 'catchbook' && styles.activeTab
-          ]}
-          onPress={() => setActiveTab('catchbook')}
-        >
-          <Text style={[
-            styles.tabText,
-            activeTab === 'catchbook' && styles.activeTabText
-          ]}>
-            Catchbook 
-          </Text>
-        </TouchableOpacity>
-      </View>
-      {activeTab === 'catchbook' && isOwnProfile && (
-        <TouchableOpacity 
-          style={styles.addCatchButton}
-          onPress={() => router.push('/history')}
-        >
-          <Plus size={20} color={Colors.card} />
-          <Text style={styles.addCatchButtonText}>Add New Catch</Text>
-        </TouchableOpacity>
-      )}
-    </>
   );
+
+  const renderPostsGrid = () => {
+    if (activeTab !== 'posts') return null;
+    
+    const screenWidth = Dimensions.get('window').width;
+    const imageSize = (screenWidth - 3) / 2; // 2 columns with 1px gap in middle
+    
+    return (
+      <View style={styles.postsGrid}>
+        {userPosts.map((post) => (
+          <TouchableOpacity 
+            key={post.id}
+            style={[styles.gridItem, { width: imageSize, height: imageSize }]}
+            onPress={() => router.push(`/post/${post.id}`)}
+          >
+            {post.videoUrl ? (
+              <>
+                <Image
+                  source={{ uri: post.videoUrl }}
+                  style={styles.gridImage}
+                  resizeMode="cover"
+                />
+                <View style={styles.videoIndicator}>
+                  <Play size={24} color={Colors.card} fill={Colors.card} />
+                </View>
+              </>
+            ) : post.imageUrl ? (
+              <Image
+                source={{ uri: post.imageUrl }}
+                style={styles.gridImage}
+                resizeMode="cover"
+              />
+            ) : (
+              <View style={styles.gridPlaceholder}>
+                <Text style={styles.gridPlaceholderText}>No Media</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        ))}
+      </View>
+    );
+  };
+
+  const renderCatchbook = () => {
+    if (activeTab !== 'catchbook') return null;
+    
+    return (
+      <View style={styles.catchbookContainer}>
+        {catches.map((item) => (
+          <CatchCard key={item.id} item={item} showDelete={isOwnProfile} />
+        ))}
+      </View>
+    );
+  };
 
   return (
     <View style={styles.container}>
-      <FlatList
-        data={currentData}
-        keyExtractor={(item) => item.id}
-        renderItem={renderItem}
-        ListHeaderComponent={renderHeader}
-        ListEmptyComponent={
-          isEmpty ? (
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>
-                {activeTab === 'posts' 
-                  ? (isOwnProfile ? "You haven't shared any posts yet" : "This user hasn't shared any posts yet")
-                  : (isOwnProfile ? "You haven't caught any fish yet" : "This user hasn't caught any fish yet")}
-              </Text>
-            </View>
-          ) : null
-        }
-        contentContainerStyle={[
-          styles.listContent,
-          isEmpty && styles.emptyListContent
-        ]}
+      {/* Sticky Top Bar - appears on scroll */}
+      {showTopBar && (
+        <Animated.View style={styles.topBar}>
+          <Text style={styles.topBarText}>{profileUser?.username}</Text>
+        </Animated.View>
+      )}
+
+      <Animated.ScrollView
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
-        stickyHeaderIndices={[0]}
-      />
+        contentContainerStyle={styles.scrollContent}
+      >
+        {/* Profile Header - Fixed */}
+        <View style={styles.stickyHeader}>
+          <ProfileHeader 
+            user={profileUser!} 
+            isCurrentUser={isOwnProfile}
+            onEditProfile={handleEditProfile}
+          />
+        </View>
+
+        {/* Tabs */}
+        <View style={styles.tabsContainer}>
+          <TouchableOpacity 
+            style={[
+              styles.tab, 
+              activeTab === 'posts' && styles.activeTab
+            ]}
+            onPress={() => setActiveTab('posts')}
+          >
+            <Text style={[
+              styles.tabText,
+              activeTab === 'posts' && styles.activeTabText
+            ]}>
+              Posts ({userPosts.length})
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[
+              styles.tab, 
+              activeTab === 'catchbook' && styles.activeTab
+            ]}
+            onPress={() => setActiveTab('catchbook')}
+          >
+            <Text style={[
+              styles.tabText,
+              activeTab === 'catchbook' && styles.activeTabText
+            ]}>
+              Catchbook 
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Add Catch Button */}
+        {activeTab === 'catchbook' && isOwnProfile && (
+          <TouchableOpacity 
+            style={styles.addCatchButton}
+            onPress={() => router.push('/history')}
+          >
+            <Plus size={20} color={Colors.card} />
+            <Text style={styles.addCatchButtonText}>Add New Catch</Text>
+          </TouchableOpacity>
+        )}
+
+        {/* Content */}
+        {currentData.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>
+              {activeTab === 'posts' 
+                ? (isOwnProfile ? "You haven't shared any posts yet" : "This user hasn't shared any posts yet")
+                : (isOwnProfile ? "You haven't caught any fish yet" : "This user hasn't caught any fish yet")}
+            </Text>
+          </View>
+        ) : (
+          <>
+            {renderPostsGrid()}
+            {renderCatchbook()}
+          </>
+        )}
+      </Animated.ScrollView>
     </View>
   );
 }
@@ -233,6 +295,68 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingBottom: 40,
+  },
+  scrollContent: {
+    paddingBottom: 40,
+  },
+  stickyHeader: {
+    backgroundColor: Colors.background,
+  },
+  topBar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 60,
+    backgroundColor: Colors.card,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+    zIndex: 1000,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  topBarText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  postsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 1,
+  },
+  gridItem: {
+    backgroundColor: Colors.card,
+    borderWidth: 0.5,
+    borderColor: Colors.background,
+  },
+  gridImage: {
+    width: '100%',
+    height: '100%',
+  },
+  gridPlaceholder: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: Colors.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  gridPlaceholderText: {
+    color: Colors.textLight,
+    fontSize: 12,
+  },
+  videoIndicator: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+  },
+  catchbookContainer: {
+    padding: 16,
   },
   sectionsContainer: {
     flex: 1,
