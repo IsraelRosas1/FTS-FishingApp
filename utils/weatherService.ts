@@ -258,6 +258,8 @@ export function getHourlyForecast(weatherData: WeatherData, days: number = 7) {
 
     const dayEnd = new Date(dayStart);
     dayEnd.setHours(23, 59, 59, 999);
+    // For day 0 (today) start from the current time instead of midnight
+    const startBoundary = day === 0 ? now : dayStart;
 
     const dayForecast = weatherData.hourly.time
       .map((time, index) => ({
@@ -269,7 +271,7 @@ export function getHourlyForecast(weatherData: WeatherData, days: number = 7) {
         temperature: weatherData.hourly.temperature[index],
         precipitation: weatherData.hourly.precipitation[index],
       }))
-      .filter(item => item.time >= dayStart && item.time <= dayEnd)
+      .filter(item => item.time >= startBoundary && item.time <= dayEnd)
       .slice(0, 24); // Limit to 24 hours per day
 
     forecasts.push({

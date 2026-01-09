@@ -225,13 +225,28 @@ export default function WeatherScreen() {
               {day.hours.map((hour: HourlyForecastItem, hourIndex: number) => (
                 <View key={hourIndex} style={styles.hourCard}>
                   <Text style={styles.hourTime}>{formatTime(hour.time)}</Text>
-                  <Text style={styles.hourTemp}>{hour.temperature.toFixed(1)}°C</Text>
-                  <View style={styles.hourDetails}>
-                    <Text style={styles.hourDetail}>☁️ {hour.cloudCover}%</Text>
-                    <Text style={styles.hourDetail}>💨 {hour.windSpeed.toFixed(1)} km/h</Text>
-                    <Text style={styles.hourDetail}>📊 {hour.pressure.toFixed(0)}</Text>
+                  <Text style={styles.hourTemp}>{((hour.temperature * 9) / 5 + 32).toFixed(1)}°F</Text>
+                  <View style={styles.hourDetailsRow}>
+                    <View style={styles.hourDetailItem}>
+                      <Cloud size={14} color={Colors.textLight} />
+                      <Text style={styles.hourDetailText}>{hour.cloudCover}%</Text>
+                    </View>
+
+                    <View style={styles.hourDetailItem}>
+                      <Wind size={14} color={Colors.textLight} />
+                      <Text style={styles.hourDetailText}>{hour.windSpeed.toFixed(1)} km/h</Text>
+                    </View>
+
+                    <View style={styles.hourDetailItem}>
+                      <Thermometer size={14} color={Colors.textLight} />
+                      <Text style={styles.hourDetailText}>{hour.pressure.toFixed(0)}</Text>
+                    </View>
+
                     {hour.precipitation > 0 && (
-                      <Text style={styles.hourDetail}>🌧️ {hour.precipitation.toFixed(1)}mm</Text>
+                      <View style={styles.hourDetailItem}>
+                        <Droplets size={14} color={Colors.textLight} />
+                        <Text style={styles.hourDetailText}>{(hour.precipitation / 25.4).toFixed(2)} in</Text>
+                      </View>
                     )}
                   </View>
                 </View>
@@ -266,7 +281,7 @@ export default function WeatherScreen() {
   }
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={styles.container} stickyHeaderIndices={[0]}>
       <View style={styles.header}>
         <Cloud size={24} color={Colors.primary} />
         <Text style={styles.headerTitle}>Weather Conditions</Text>
@@ -300,6 +315,8 @@ const styles = StyleSheet.create({
     padding: 16,
     backgroundColor: Colors.card,
     marginBottom: 16,
+    zIndex: 10,
+    elevation: 6,
   },
   headerTitle: {
     fontSize: 20,
@@ -415,6 +432,23 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: Colors.text,
     marginBottom: 2,
+  },
+  hourDetailsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  hourDetailItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  hourDetailText: {
+    color: Colors.textLight,
+    fontSize: 11,
+    marginLeft: 6,
   },
   loadingContainer: {
     flex: 1,
