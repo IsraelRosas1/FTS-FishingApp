@@ -26,6 +26,13 @@ export default function FeedScreen() {
     }
   }, [isAuthenticated, user?.id]);
   
+  // Reload posts when user profile updates (e.g., profile image changes)
+  useEffect(() => {
+    if (isAuthenticated && user?.id && user?.profileImageUrl) {
+      loadPosts(user.id);
+    }
+  }, [user?.profileImageUrl, user?.displayName]);
+  
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -54,7 +61,7 @@ export default function FeedScreen() {
       <FlatList
         data={posts}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <PostCard post={item} />}
+        renderItem={({ item }) => <PostCard post={item} allowDelete={false} />}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
       />

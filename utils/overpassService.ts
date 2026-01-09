@@ -15,7 +15,7 @@ export type WaterFeature = {
 const DEFAULT_OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
 
 // Simple fetch with timeout
-async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = 10_000) {
+async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = 30_000) {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -26,15 +26,20 @@ async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutM
   }
 }
 
-// Retry helper
-async function retry<T>(fn: () => Promise<T>, attempts = 2, delayMs = 500): Promise<T> {
+// Retry helper with exponential backoff
+async function retry<T>(fn: () => Promise<T>, attempts = 3, baseDelayMs = 1000): Promise<T> {
   let lastErr: any;
   for (let i = 0; i < attempts; i++) {
     try {
       return await fn();
     } catch (err) {
       lastErr = err;
-      if (i < attempts - 1) await new Promise((r) => setTimeout(r, delayMs));
+      if (i < attempts - 1) {
+        // Exponential backoff: 1s, 2s, 4s
+        const delay = baseDelayMs * Math.pow(2, i);
+        console.log(`Retry attempt ${i + 1} failed, waiting ${delay}ms before retry...`);
+        await new Promise((r) => setTimeout(r, delay));
+      }
     }
   }
   throw lastErr;
@@ -43,15 +48,10 @@ async function retry<T>(fn: () => Promise<T>, attempts = 2, delayMs = 500): Prom
 // Build Overpass QL query for common water features
 function buildOverpassQuery(lat: number, lon: number, radiusMeters: number) {
   return `
-    [out:json][timeout:25];
+    [out:json][timeout:30];
     (
-      way(around:${radiusMeters},${lat},${lon})
-        ["natural"="water"]
-        ["water"="lake"];
-      relation(around:${radiusMeters},${lat},${lon})
-        ["natural"="water"]
-        ["water"="lake"];
-
+      way(around:${radiusMeters},${lat},${lon})["natural"="water"]["water"="lake"];
+      relation(around:${radiusMeters},${lat},${lon})["natural"="water"]["water"="lake"];
     );
     out center tags;
   `;
@@ -144,13 +144,17 @@ export async function searchWaterFeatures(
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body,
-    }, 15_000),
+    }, 30_000),
     3,
-    800,
+    2000,
   );
 
   if (!res.ok) {
     const text = await res.text().catch(() => '');
+    // Check if it's a timeout/busy error
+    if (res.status === 504 || text.includes('timeout') || text.includes('too busy')) {
+      throw new Error(`Overpass API is currently busy. Please try again in a moment.`);
+    }
     throw new Error(`Overpass API error: ${res.status} ${res.statusText} ${text}`);
   }
 

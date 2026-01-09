@@ -16,6 +16,7 @@ export default function EditProfileScreen() {
   const [username, setUsername] = useState(user?.username || '');
   const [bio, setBio] = useState(user?.bio || '');
   const [profileImage, setProfileImage] = useState(user?.profileImageUrl || null);
+  const [hasChangedImage, setHasChangedImage] = useState(false);
   
   if (!user) {
     router.replace('/signin');
@@ -39,6 +40,7 @@ export default function EditProfileScreen() {
     
     if (!result.canceled) {
       setProfileImage(result.assets[0].uri);
+      setHasChangedImage(true);
     }
   };
   
@@ -63,12 +65,18 @@ export default function EditProfileScreen() {
         finalProfileImageUrl = await uploadImage(profileImage, path);
       }
       
-      updateProfile({
+      // Build update object - only include profileImageUrl if image was changed
+      const updates: any = {
         displayName: displayName.trim(),
         username: username.trim(),
         bio: bio.trim(),
-        profileImageUrl: finalProfileImageUrl,
-      });
+      };
+      
+      if (hasChangedImage) {
+        updates.profileImageUrl = finalProfileImageUrl;
+      }
+      
+      updateProfile(updates);
       
       Alert.alert('Profile Updated', 'Your profile has been updated successfully');
       router.back();

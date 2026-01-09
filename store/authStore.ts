@@ -10,7 +10,7 @@ import {
   signInWithEmailAndPassword, 
   signOut as firebaseSignOut 
 } from 'firebase/auth';
-import { doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { deleteImage } from '@/utils/firebaseStorage';
 
 interface AuthState {
@@ -94,8 +94,9 @@ export const useAuthStore = create<AuthState>()(
         if (!currentUser) return;
 
         try {
-          // If updating profile image, delete the old one from Storage
-          if (updates.profileImageUrl && currentUser.profileImageUrl) {
+          // If updating profile image with a NEW URL, delete the old one from Storage
+          if (updates.profileImageUrl && currentUser.profileImageUrl && 
+              updates.profileImageUrl !== currentUser.profileImageUrl) {
             try {
               await deleteImage(currentUser.profileImageUrl);
               console.log('Old profile image deleted from Storage');
@@ -105,9 +106,54 @@ export const useAuthStore = create<AuthState>()(
             }
           }
 
-          // Update Firestore
+          // Update Firestore user document
           const userRef = doc(db, "users", currentUser.id);
           await updateDoc(userRef, updates);
+
+          // Update all posts by this user with new profile info
+          if (updates.profileImageUrl || updates.displayName) {
+            try {
+              const postsQuery = query(collection(db, 'posts'), where('userId', '==', currentUser.id));
+              const postsSnapshot = await getDocs(postsQuery);
+              
+              const postUpdatePromises = postsSnapshot.docs.map(async (postDoc) => {
+                const postUpdates: any = {};
+                if (updates.displayName) postUpdates.userDisplayName = updates.displayName;
+                if (updates.profileImageUrl) postUpdates.userProfileImage = updates.profileImageUrl;
+                
+                if (Object.keys(postUpdates).length > 0) {
+                  await updateDoc(doc(db, 'posts', postDoc.id), postUpdates);
+                }
+              });
+              
+              await Promise.all(postUpdatePromises);
+              console.log('Updated user info in all posts');
+            } catch (error) {
+              console.warn('Failed to update posts with new profile info:', error);
+              // Don't fail the profile update if post updates fail
+            }
+
+            // Update all comments by this user with new profile info
+            try {
+              const commentsQuery = query(collection(db, 'comments'), where('userId', '==', currentUser.id));
+              const commentsSnapshot = await getDocs(commentsQuery);
+              
+              const commentUpdatePromises = commentsSnapshot.docs.map(async (commentDoc) => {
+                const commentUpdates: any = {};
+                if (updates.displayName) commentUpdates.userDisplayName = updates.displayName;
+                if (updates.profileImageUrl) commentUpdates.userProfileImage = updates.profileImageUrl;
+                
+                if (Object.keys(commentUpdates).length > 0) {
+                  await updateDoc(doc(db, 'comments', commentDoc.id), commentUpdates);
+                }
+              });
+              
+              await Promise.all(commentUpdatePromises);
+              console.log('Updated user info in all comments');
+            } catch (error) {
+              console.warn('Failed to update comments with new profile info:', error);
+            }
+          }
 
           // Update local state
           set((state) => ({

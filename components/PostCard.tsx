@@ -14,9 +14,10 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 interface PostCardProps {
   post: Post;
   showComments?: boolean;
+  allowDelete?: boolean;
 }
 
-export default function PostCard({ post, showComments = false }: PostCardProps) {
+export default function PostCard({ post, showComments = false, allowDelete = true }: PostCardProps) {
   const router = useRouter();
   const { likePost, unlikePost, deletePost } = useSocialStore();
   const user = useAuthStore((state) => state.user);
@@ -110,7 +111,7 @@ export default function PostCard({ post, showComments = false }: PostCardProps) 
             <Text style={styles.postTime}>{formattedDate}</Text>
           </View>
         </TouchableOpacity>
-        {post.userId === user?.id && (
+        {allowDelete && post.userId === user?.id && (
           <TouchableOpacity onPress={handleDelete} style={styles.deleteButton}>
             <Trash2 size={20} color={Colors.error} />
           </TouchableOpacity>
