@@ -64,7 +64,7 @@ function RootLayoutNav() {
   }, [isAuthenticated, segments, isLoading]);
   return (
     <>
-      <StatusBar style="dark" />
+      <StatusBar style="light" />
       <Stack
         screenOptions={{
           headerBackTitle: "Back",

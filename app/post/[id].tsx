@@ -114,6 +114,7 @@ export default function PostDetailScreen() {
             value={commentText}
             onChangeText={setCommentText}
             placeholder="Add a comment..."
+            placeholderTextColor={Colors.textLight}
             multiline
           />
           <TouchableOpacity 
@@ -175,6 +176,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     maxHeight: 100,
     fontSize: 16,
+    color: Colors.text,
   },
   sendButton: {
     width: 40,

@@ -407,13 +407,13 @@ export default function CreatePostScreen() {
         fishDetected: [
           // Fish from images
           ...fishRecognitionResults
-            .filter((r) => r.fishData.confidence > 50)
+            .filter((r) => r.fishData.confidence > 30)
             .map((r) => ({
               species: r.fishData.name,
               confidence: r.fishData.confidence,
             })),
           // Fish from video
-          ...(videoFishData && videoFishData.confidence > 50 ? [{
+          ...(videoFishData && videoFishData.confidence > 30 ? [{
             species: videoFishData.name,
             confidence: videoFishData.confidence,
           }] : [])
