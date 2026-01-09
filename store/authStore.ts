@@ -22,6 +22,7 @@ interface AuthState {
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<User>) => Promise<void>;
+  checkUsernameAvailability: (username: string, excludeUserId?: string) => Promise<boolean>;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -32,16 +33,43 @@ export const useAuthStore = create<AuthState>()(
       isLoading: false,
       error: null,
       
+      checkUsernameAvailability: async (username: string, excludeUserId?: string) => {
+        try {
+          const usernameQuery = query(
+            collection(db, 'users'),
+            where('username', '==', username.toLowerCase())
+          );
+          const snapshot = await getDocs(usernameQuery);
+          
+          // If excluding a user (for edit profile), check if the username belongs to them
+          if (excludeUserId && snapshot.docs.length === 1) {
+            return snapshot.docs[0].id === excludeUserId;
+          }
+          
+          // Username is available if no documents found
+          return snapshot.empty;
+        } catch (error) {
+          console.error('Error checking username:', error);
+          return false;
+        }
+      },
+      
       signUp: async (email, password, username) => {
         set({ isLoading: true, error: null });
         try {
+          // Check if username is already taken
+          const usernameAvailable = await get().checkUsernameAvailability(username);
+          if (!usernameAvailable) {
+            throw new Error('Username is already taken. Please choose another one.');
+          }
+
           // 1. Create User in Firebase Auth
           const userCredential = await createUserWithEmailAndPassword(auth, email, password);
           const firebaseUser = userCredential.user;
 
           const newUser: User = {
             id: firebaseUser.uid, // Use Firebase UID as the ID
-            username,
+            username: username.toLowerCase(),
             email,
             displayName: username,
             bio: '',
@@ -94,6 +122,16 @@ export const useAuthStore = create<AuthState>()(
         if (!currentUser) return;
 
         try {
+          // If updating username, check if it's available
+          if (updates.username && updates.username.toLowerCase() !== currentUser.username.toLowerCase()) {
+            const usernameAvailable = await get().checkUsernameAvailability(updates.username, currentUser.id);
+            if (!usernameAvailable) {
+              throw new Error('Username is already taken. Please choose another one.');
+            }
+            // Normalize username to lowercase
+            updates.username = updates.username.toLowerCase();
+          }
+
           // If updating profile image with a NEW URL, delete the old one from Storage
           if (updates.profileImageUrl && currentUser.profileImageUrl && 
               updates.profileImageUrl !== currentUser.profileImageUrl) {

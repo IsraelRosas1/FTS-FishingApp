@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, View, Text, TextInput, TouchableOpacity, Image, ScrollView, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Camera } from 'lucide-react-native';
@@ -11,12 +11,18 @@ export default function EditProfileScreen() {
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
   const updateProfile = useAuthStore((state) => state.updateProfile);
+  const checkUsernameAvailability = useAuthStore((state) => state.checkUsernameAvailability);
   
   const [displayName, setDisplayName] = useState(user?.displayName || '');
   const [username, setUsername] = useState(user?.username || '');
   const [bio, setBio] = useState(user?.bio || '');
   const [profileImage, setProfileImage] = useState(user?.profileImageUrl || null);
   const [hasChangedImage, setHasChangedImage] = useState(false);
+  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
+  const [usernameChecking, setUsernameChecking] = useState(false);
+  const [usernameError, setUsernameError] = useState<string | null>(null);
+  const typingDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const currentCheckRef = useRef(0);
   
   if (!user) {
     router.replace('/signin');
@@ -43,6 +49,50 @@ export default function EditProfileScreen() {
       setHasChangedImage(true);
     }
   };
+
+  // Debounced inline validation: checks username availability after user stops typing
+  useEffect(() => {
+    const trimmed = username.trim();
+
+    // Reset when empty
+    if (!trimmed) {
+      setUsernameAvailable(null);
+      setUsernameError(null);
+      setUsernameChecking(false);
+      return;
+    }
+
+    // If user didn't change their username, it's available
+    if (trimmed.toLowerCase() === user.username.toLowerCase()) {
+      setUsernameAvailable(true);
+      setUsernameError(null);
+      setUsernameChecking(false);
+      return;
+    }
+
+    setUsernameChecking(true);
+    const checkId = ++currentCheckRef.current;
+
+    if (typingDebounceRef.current) clearTimeout(typingDebounceRef.current);
+    typingDebounceRef.current = setTimeout(async () => {
+      try {
+        const available = await checkUsernameAvailability(trimmed, user.id);
+        if (checkId !== currentCheckRef.current) return; // stale
+        setUsernameAvailable(available);
+        setUsernameError(available ? null : 'Username is already taken.');
+      } catch (err) {
+        if (checkId !== currentCheckRef.current) return;
+        setUsernameAvailable(null);
+        setUsernameError('Error checking username');
+      } finally {
+        if (checkId === currentCheckRef.current) setUsernameChecking(false);
+      }
+    }, 700);
+
+    return () => {
+      if (typingDebounceRef.current) clearTimeout(typingDebounceRef.current);
+    };
+  }, [username]);
   
   const handleSave = async () => {
     if (!displayName.trim()) {
@@ -56,6 +106,14 @@ export default function EditProfileScreen() {
     }
     
     try {
+      // Final availability check to avoid race conditions
+      if (username.trim().toLowerCase() !== user.username.toLowerCase()) {
+        const available = await checkUsernameAvailability(username.trim(), user.id);
+        if (!available) {
+          Alert.alert('Username Taken', 'Username is already taken. Please choose another one.');
+          return;
+        }
+      }
       let finalProfileImageUrl = profileImage;
       
       // Upload profile image to Firebase Storage if it's a local URI
@@ -76,7 +134,7 @@ export default function EditProfileScreen() {
         updates.profileImageUrl = finalProfileImageUrl;
       }
       
-      updateProfile(updates);
+      await updateProfile(updates);
       
       Alert.alert('Profile Updated', 'Your profile has been updated successfully');
       router.back();
@@ -125,6 +183,15 @@ export default function EditProfileScreen() {
             placeholder="Your username"
             autoCapitalize="none"
           />
+          {usernameChecking && (
+            <Text style={styles.usernameStatus}>Checking username...</Text>
+          )}
+          {usernameError && (
+            <Text style={styles.usernameError}>{usernameError}</Text>
+          )}
+          {usernameAvailable && username.trim().toLowerCase() !== user.username.toLowerCase() && (
+            <Text style={styles.usernameAvailable}>Username available</Text>
+          )}
         </View>
         
         <View style={styles.inputContainer}>
@@ -221,5 +288,20 @@ const styles = StyleSheet.create({
     color: Colors.card,
     fontSize: 18,
     fontWeight: '600',
+  },
+  usernameError: {
+    color: Colors.error,
+    marginTop: 8,
+    fontSize: 13,
+  },
+  usernameStatus: {
+    color: Colors.textLight,
+    marginTop: 8,
+    fontSize: 13,
+  },
+  usernameAvailable: {
+    color: Colors.success,
+    marginTop: 8,
+    fontSize: 13,
   },
 });

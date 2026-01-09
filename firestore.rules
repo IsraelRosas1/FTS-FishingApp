@@ -1,0 +1,98 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Users collection
+    match /users/{userId} {
+      // Allow anyone to read username field for uniqueness checking
+      allow read: if true;
+      
+      // Allow users to create their own profile during signup
+      allow create: if request.auth != null && request.auth.uid == userId;
+      
+      // Allow users to update their own profile
+      allow update: if request.auth != null && request.auth.uid == userId;
+      
+      // Don't allow delete
+      allow delete: if false;
+    }
+    
+    // Posts collection
+    match /posts/{postId} {
+      // Anyone can read posts
+      allow read: if true;
+      
+      // Only authenticated users can create posts
+      allow create: if request.auth != null && 
+                       request.resource.data.userId == request.auth.uid;
+      
+      // Allow post owner to update their posts, OR
+      // Allow any authenticated user to update likes and comments counts
+      allow update: if request.auth != null && (
+                       resource.data.userId == request.auth.uid ||
+                       (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'comments']))
+                    );
+      
+      // Only post owner can delete their posts
+      allow delete: if request.auth != null && 
+                       resource.data.userId == request.auth.uid;
+    }
+    
+    // Comments collection
+    match /comments/{commentId} {
+      // Anyone can read comments
+      allow read: if true;
+      
+      // Only authenticated users can create comments
+      allow create: if request.auth != null && 
+                       request.resource.data.userId == request.auth.uid;
+      
+      // Only comment owner can delete their comments
+      allow delete: if request.auth != null && 
+                       resource.data.userId == request.auth.uid;
+      
+      // Don't allow updates to comments
+      allow update: if false;
+    }
+    
+    // Post Likes collection
+    match /postLikes/{likeId} {
+      // Anyone can read likes
+      allow read: if true;
+      
+      // Only authenticated users can create likes
+      allow create: if request.auth != null && 
+                       request.resource.data.userId == request.auth.uid;
+      
+      // Only like owner can delete their like
+      allow delete: if request.auth != null && 
+                       resource.data.userId == request.auth.uid;
+      
+      // Don't allow updates to likes
+      allow update: if false;
+    }
+    
+    // Catches collection
+    match /catches/{catchId} {
+      // Anyone can read catches
+      allow read: if true;
+      
+      // Only authenticated users can create catches
+      allow create: if request.auth != null && 
+                       request.resource.data.userId == request.auth.uid;
+      
+      // Only catch owner can update their catches
+      allow update: if request.auth != null && 
+                       resource.data.userId == request.auth.uid;
+      
+      // Only catch owner can delete their catches
+      allow delete: if request.auth != null && 
+                       resource.data.userId == request.auth.uid;
+    }
+    
+    // Default: deny all other access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

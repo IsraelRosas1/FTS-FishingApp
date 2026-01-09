@@ -6,13 +6,15 @@ import Colors from '@/constants/colors';
 
 export default function SignUpScreen() {
   const router = useRouter();
-  const { signUp, isLoading, error, isAuthenticated } = useAuthStore();
+  const { signUp, isLoading, error, isAuthenticated, checkUsernameAvailability } = useAuthStore();
   
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  
+  const [usernameStatus, setUsernameStatus] = useState<'available' | 'taken' | 'checking' | null>(null);
+  const [usernameTimeout, setUsernameTimeout] = useState<NodeJS.Timeout | null>(null);
+
   useEffect(() => {
     if (isAuthenticated) {
       router.replace('/(tabs)');
@@ -25,9 +27,71 @@ export default function SignUpScreen() {
     }
   }, [error]);
   
+  // Debounced username validation
+  useEffect(() => {
+    if (!username || username.length < 3) {
+      setUsernameStatus(null);
+      return;
+    }
+    
+    if (usernameTimeout) {
+      clearTimeout(usernameTimeout);
+    }
+    
+    setUsernameStatus('checking');
+    
+    const timeout = setTimeout(async () => {
+      const available = await checkUsernameAvailability(username);
+      setUsernameStatus(available ? 'available' : 'taken');
+    }, 500);
+    
+    setUsernameTimeout(timeout);
+    
+    return () => {
+      if (timeout) clearTimeout(timeout);
+    };
+  }, [username]);
+  
+  // Debounced username validation
+  useEffect(() => {
+    if (!username || username.length < 3) {
+      setUsernameStatus(null);
+      return;
+    }
+    
+    // Clear previous timeout
+    if (usernameTimeout) {
+      clearTimeout(usernameTimeout);
+    }
+    
+    setUsernameStatus('checking');
+    
+    // Set new timeout for validation
+    const timeout = setTimeout(async () => {
+      const available = await checkUsernameAvailability(username);
+      setUsernameStatus(available ? 'available' : 'taken');
+    }, 500);
+    
+    setUsernameTimeout(timeout);
+    
+    return () => {
+      if (timeout) clearTimeout(timeout);
+    };
+  }, [username]);
+  
   const handleSignUp = async () => {
     if (!username || !email || !password || !confirmPassword) {
       Alert.alert('Missing Information', 'Please fill in all fields');
+      return;
+    }
+    
+    if (username.length < 3) {
+      Alert.alert('Invalid Username', 'Username must be at least 3 characters long');
+      return;
+    }
+    
+    if (usernameStatus === 'taken') {
+      Alert.alert('Username Taken', 'This username is already taken. Please choose another one.');
       return;
     }
     
@@ -63,13 +127,24 @@ export default function SignUpScreen() {
         
         <View style={styles.inputContainer}>
           <Text style={styles.label}>Username</Text>
-          <TextInput
-            style={styles.input}
-            value={username}
-            onChangeText={setUsername}
-            placeholder="Choose a username"
-            autoCapitalize="none"
-          />
+          <View style={styles.inputWrapper}>
+            <TextInput
+              style={[styles.input, usernameStatus === 'taken' && styles.inputError]}
+              value={username}
+              onChangeText={setUsername}
+              placeholder="Choose a username"
+              autoCapitalize="none"
+            />
+            {usernameStatus === 'checking' && (
+              <ActivityIndicator size="small" color={Colors.primary} style={styles.inputIcon} />
+            )}
+            {usernameStatus === 'available' && (
+              <Text style={styles.availableText}>✓ Available</Text>
+            )}
+            {usernameStatus === 'taken' && (
+              <Text style={styles.takenText}>✗ Taken</Text>
+            )}
+          </View>
         </View>
         
         <View style={styles.inputContainer}>
@@ -161,6 +236,9 @@ const styles = StyleSheet.create({
   inputContainer: {
     marginBottom: 20,
   },
+  inputWrapper: {
+    position: 'relative',
+  },
   label: {
     fontSize: 16,
     fontWeight: '500',
@@ -175,6 +253,31 @@ const styles = StyleSheet.create({
     fontSize: 16,
     borderWidth: 1,
     borderColor: Colors.border,
+  },
+  inputError: {
+    borderColor: Colors.error,
+    borderWidth: 2,
+  },
+  inputIcon: {
+    position: 'absolute',
+    right: 12,
+    top: 14,
+  },
+  availableText: {
+    position: 'absolute',
+    right: 12,
+    top: 14,
+    color: '#10B981',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  takenText: {
+    position: 'absolute',
+    right: 12,
+    top: 14,
+    color: Colors.error,
+    fontSize: 14,
+    fontWeight: '600',
   },
   signUpButton: {
     backgroundColor: Colors.primary,
