@@ -9,6 +9,7 @@ export interface Fish {
 
 export interface Catch {
   id: string;
+  userId?: string;
   fishId: string | null;
   fishName: string | null;
   location: {
@@ -20,4 +21,5 @@ export interface Catch {
   imageUri: string;
   notes: string;
   confidence?: number;
+  createdAt?: string;
 }

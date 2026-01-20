@@ -9,12 +9,13 @@ export type WaterFeature = {
   name?: string;
   center?: { lat: number; lon: number };
   tags: Record<string, string>;
+  fishSpecies?: FishSpecies[]; // Optional fish species data
 };
 
 const DEFAULT_OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
 
 // Simple fetch with timeout
-async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = 10_000) {
+async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = 30_000) {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -25,15 +26,20 @@ async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutM
   }
 }
 
-// Retry helper
-async function retry<T>(fn: () => Promise<T>, attempts = 2, delayMs = 500): Promise<T> {
+// Retry helper with exponential backoff
+async function retry<T>(fn: () => Promise<T>, attempts = 3, baseDelayMs = 1000): Promise<T> {
   let lastErr: any;
   for (let i = 0; i < attempts; i++) {
     try {
       return await fn();
     } catch (err) {
       lastErr = err;
-      if (i < attempts - 1) await new Promise((r) => setTimeout(r, delayMs));
+      if (i < attempts - 1) {
+        // Exponential backoff: 1s, 2s, 4s
+        const delay = baseDelayMs * Math.pow(2, i);
+        console.log(`Retry attempt ${i + 1} failed, waiting ${delay}ms before retry...`);
+        await new Promise((r) => setTimeout(r, delay));
+      }
     }
   }
   throw lastErr;
@@ -42,15 +48,10 @@ async function retry<T>(fn: () => Promise<T>, attempts = 2, delayMs = 500): Prom
 // Build Overpass QL query for common water features
 function buildOverpassQuery(lat: number, lon: number, radiusMeters: number) {
   return `
-    [out:json][timeout:25];
+    [out:json][timeout:30];
     (
-      way(around:${radiusMeters},${lat},${lon})
-        ["natural"="water"]
-        ["water"="lake"];
-      relation(around:${radiusMeters},${lat},${lon})
-        ["natural"="water"]
-        ["water"="lake"];
-
+      way(around:${radiusMeters},${lat},${lon})["natural"="water"]["water"="lake"];
+      relation(around:${radiusMeters},${lat},${lon})["natural"="water"]["water"="lake"];
     );
     out center tags;
   `;
@@ -143,13 +144,17 @@ export async function searchWaterFeatures(
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body,
-    }, 15_000),
+    }, 30_000),
     3,
-    800,
+    2000,
   );
 
   if (!res.ok) {
     const text = await res.text().catch(() => '');
+    // Check if it's a timeout/busy error
+    if (res.status === 504 || text.includes('timeout') || text.includes('too busy')) {
+      throw new Error(`Overpass API is currently busy. Please try again in a moment.`);
+    }
     throw new Error(`Overpass API error: ${res.status} ${res.statusText} ${text}`);
   }
 
@@ -171,8 +176,6 @@ export async function searchWaterFeatures(
 
   return results.filter(isFishableLake);
 }
-
-export default { searchWaterFeatures };
 interface OverpassElement{
     type: 'node' | 'way' | 'relation';
     id: number;
@@ -186,3 +189,70 @@ interface OverpassElement{
         role: string;
     }>;
 }
+
+// New Type for the iNaturalist Fish Data
+export type FishSpecies = {
+  id: number;
+  commonName: string;
+  scientificName: string;
+  imageUrl: string;
+  observationCount: number;
+  wikipediaUrl?: string;
+};
+
+/**
+ * Fetches fish species observed near a specific water feature.
+ * @param lat Latitude of the lake center
+ * @param lon Longitude of the lake center
+ * @param radiusKm Search radius (default 3km)
+ */
+export async function fetchFishSpecies(
+  lat: number,
+  lon: number,
+  radiusKm = 3
+): Promise<FishSpecies[]> {
+  // NEW FILTERS ADDED: quality_grade and identifications
+  const url = `https://api.inaturalist.org/v1/observations/species_counts?` + 
+              `lat=${lat}&lng=${lon}&radius=${radiusKm}` +
+              `&taxon_id=47178` +           // Ray-finned fishes
+              `&quality_grade=research` +    // ONLY verified experts
+              `&identifications=most_agree` + // High community agreement
+              `&per_page=15`;               // Focus on the top species
+
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('iNaturalist API error');
+
+    const json = await res.json();
+
+    return json.results.map((item: any) => ({
+      id: item.taxon.id,
+      commonName: item.taxon.preferred_common_name || item.taxon.name,
+      scientificName: item.taxon.name,
+      imageUrl: item.taxon.default_photo?.medium_url || '',
+      observationCount: item.count,
+      wikipediaUrl: item.taxon.wikipedia_url,
+    }));
+  } catch (error) {
+    console.error("Failed to fetch fish species:", error);
+    return [];
+  }
+}
+
+/**
+ * Fetches fish species for a specific lake using its center coordinates.
+ * @param lake The water feature (lake) to get fish species for
+ * @param radiusKm Search radius in km (default 10)
+ */
+export async function getFishForLake(
+  lake: WaterFeature,
+  radiusKm = 3
+): Promise<FishSpecies[]> {
+  if (!lake.center) {
+    console.warn("Lake has no center coordinates, cannot fetch fish species");
+    return [];
+  }
+  return fetchFishSpecies(lake.center.lat, lake.center.lon, radiusKm);
+}
+
+export default { searchWaterFeatures, fetchFishSpecies, getFishForLake };

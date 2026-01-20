@@ -27,22 +27,8 @@ export default function CameraOptionsScreen() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
     
-    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
-    if (permissionResult.granted === false) {
-      Alert.alert('Permission Required', 'You need to grant permission to access your photos');
-      return;
-    }
-    
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      quality: 0.8,
-    });
-    
-    if (!result.canceled) {
-      await processImage(result.assets[0].uri);
-    }
+    // Navigate to create post screen
+    router.push('/create-post');
   };
 
   const handleUploadVideo = async () => {
@@ -378,7 +364,7 @@ Take a clear photo instead of video for more reliable fish identification.`
           <View style={styles.iconContainer}>
             <ImageIcon size={40} color={Colors.primary} />
           </View>
-          <Text style={styles.optionTitle}>Upload Picture</Text>
+          <Text style={styles.optionTitle}>Add Post</Text>
           <Text style={styles.optionDescription}>
             Choose an existing photo from your gallery
           </Text>

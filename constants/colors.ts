@@ -1,12 +1,12 @@
 export default {
-  primary: '#2A9DF4', // Ocean blue
-  secondary: '#1D6FA3', // Deeper blue
-  accent: '#FF9E44', // Sunset orange for accents
-  background: '#F8FCFF', // Light blue-tinted background
-  card: '#FFFFFF',
-  text: '#333333',
-  textLight: '#666666',
-  border: '#E0E9F1',
-  success: '#4CAF50',
-  error: '#F44336',
+  primary: '#1E88E5', // Darker ocean blue
+  secondary: '#0D47A1', // Deep navy blue
+  accent: '#FFA726', // Warm orange for accents
+  background: '#0A1929', // Dark blue-black background
+  card: '#132F4C', // Dark blue card
+  text: '#E3F2FD', // Light blue-white text
+  textLight: '#90CAF9', // Lighter blue for secondary text
+  border: '#1E3A5F', // Dark blue border
+  success: '#66BB6A', // Brighter success green for contrast
+  error: '#EF5350', // Brighter error red for contrast
 };

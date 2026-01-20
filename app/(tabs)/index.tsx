@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, View, FlatList, ActivityIndicator, Text, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Users, Trophy, LogOut } from 'lucide-react-native';
+import { Users, Trophy } from 'lucide-react-native';
 import { useSocialStore } from '@/store/socialStore';
 import { useAuthStore } from '@/store/authStore';
 import PostCard from '@/components/PostCard';
@@ -16,14 +16,22 @@ export default function FeedScreen() {
   const [feedMode, setFeedMode] = useState<FeedMode>('social');
   const posts = useSocialStore((state) => state.posts);
   const isLoading = useSocialStore((state) => state.isLoading);
+  const loadPosts = useSocialStore((state) => state.loadPosts);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const signOut = useAuthStore((state) => state.signOut);
+  const user = useAuthStore((state) => state.user);
   
   useEffect(() => {
-    if (!isAuthenticated) {
-      router.replace('/(auth)');
+    if (isAuthenticated && user?.id) {
+      loadPosts(user.id);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, user?.id]);
+  
+  // Reload posts when user profile updates (e.g., profile image changes)
+  useEffect(() => {
+    if (isAuthenticated && user?.id && user?.profileImageUrl) {
+      loadPosts(user.id);
+    }
+  }, [user?.profileImageUrl, user?.displayName]);
   
   if (isLoading) {
     return (
@@ -53,7 +61,7 @@ export default function FeedScreen() {
       <FlatList
         data={posts}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <PostCard post={item} />}
+        renderItem={({ item }) => <PostCard post={item} allowDelete={false} />}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
       />
@@ -62,18 +70,7 @@ export default function FeedScreen() {
   
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.signOutButton}
-          onPress={() => {
-            signOut();
-            router.replace('/(auth)');
-          }}
-        >
-          <LogOut size={20} color={Colors.error} />
-          <Text style={styles.signOutText}>Sign Out</Text>
-        </TouchableOpacity>
-      </View>
+
       
       <View style={styles.toggleContainer}>
         <TouchableOpacity 
@@ -103,26 +100,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    paddingHorizontal: 16,
-    paddingTop: 16,
-  },
-  signOutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.card,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  signOutText: {
-    color: Colors.error,
-    fontSize: 14,
-    fontWeight: '600',
-    marginLeft: 6,
-  },
+
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',

@@ -5,19 +5,20 @@ import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
 import Colors from '@/constants/colors';
 
-import type { WaterFeature } from '@/utils/overpassService';
-import { searchWaterFeatures } from '@/utils/overpassService';
+import type { WaterFeature, FishSpecies } from '@/utils/overpassService';
+import { searchWaterFeatures, getFishForLake } from '@/utils/overpassService';
 
 interface FishingSpot {
   id: string;
   name: string;
   distance: number;
-  fishTypes: string[];
+  fishSpecies: FishSpecies[];
   bestTime: string;
   coordinates: {
     latitude: number;
     longitude: number;
   };
+  waterFeature: WaterFeature; // Keep reference to original feature
 }
 
 export default function FishingMapScreen() {
@@ -27,6 +28,7 @@ export default function FishingMapScreen() {
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
   const [showFullScreenMap, setShowFullScreenMap] = useState(false);
   const [selectedSpot, setSelectedSpot] = useState<FishingSpot | null>(null);
+  const [isLoadingFish, setIsLoadingFish] = useState(false);
   const [mapRegion, setMapRegion] = useState<any>(null);
 
   useEffect(() => {
@@ -87,7 +89,7 @@ export default function FishingMapScreen() {
       const features = await searchWaterFeatures(lat, lon, radiusMeters);
 
       // Map the returned WaterFeature[] into the app's FishingSpot[] shape
-      const spots: FishingSpot[] = features.map((feature: any) => {
+      const spots = features.map((feature: any) => {
           // Use feature.center for ways/relations, fall back to feature's own coords (for nodes)
           const featureLat = feature.center?.lat ?? feature.lat;
           const featureLon = feature.center?.lon ?? feature.lon;
@@ -100,27 +102,25 @@ export default function FishingMapScreen() {
           // Mock/placeholder data for non-API-provided fields
           const mockDistance = Math.floor(Math.random() * 20) + 1; 
           const name = feature.tags?.name || 'Unnamed Water Feature';
-          let fishTypes = ['Bass', 'Perch'];
-          
-          if (name.toLowerCase().includes('river')) fishTypes = ['Steelhead', 'Trout'];
-          else if (name.toLowerCase().includes('lake')) fishTypes = ['Salmon', 'Pike', 'Bass'];
-          else if (name.toLowerCase().includes('pond')) fishTypes = ['Bluegill'];
 
           return {
             id: String(feature.id),
             name: name,
             distance: mockDistance,
-            fishTypes: fishTypes,
+            fishSpecies: [] as FishSpecies[],
             bestTime: 'Sunrise to Sunset', // Placeholder
             coordinates: {
               latitude: featureLat,
               longitude: featureLon,
-            }
+            },
+            waterFeature: feature,
           };
       }).filter((spot): spot is FishingSpot => spot !== null); // Filter out nulls
 
+      const validSpots: FishingSpot[] = spots as FishingSpot[];
+
       // Sort spots: lakes first, then others
-      spots.sort((a, b) => {
+      validSpots.sort((a, b) => {
         const aIsLake = a.name.toLowerCase().includes('lake');
         const bIsLake = b.name.toLowerCase().includes('lake');
         if (aIsLake && !bIsLake) return -1;
@@ -128,8 +128,8 @@ export default function FishingMapScreen() {
         return 0;
       });
 
-      setFishingSpots(spots);
-      console.log(`Loaded ${spots.length} fishing spots from Overpass data.`);
+      setFishingSpots(validSpots);
+      console.log(`Loaded ${validSpots.length} fishing spots from Overpass data.`);
 
     } catch (error) {
       console.error('Error loading fishing spots from Overpass:', error);
@@ -155,8 +155,23 @@ export default function FishingMapScreen() {
     }
   };
 
-  const handleMarkerPress = (spot: FishingSpot) => {
+  const handleMarkerPress = async (spot: FishingSpot) => {
     setSelectedSpot(spot);
+    if (spot.fishSpecies.length === 0) {
+      setIsLoadingFish(true);
+      try {
+        const fish = await getFishForLake(spot.waterFeature);
+        // Update the spot with fish species
+        setFishingSpots(prev => prev.map(s => 
+          s.id === spot.id ? { ...s, fishSpecies: fish } : s
+        ));
+        setSelectedSpot(prev => prev ? { ...prev, fishSpecies: fish } : null);
+      } catch (error) {
+        console.error('Error fetching fish species:', error);
+      } finally {
+        setIsLoadingFish(false);
+      }
+    }
   };
 
   const renderMapView = () => {
@@ -176,7 +191,7 @@ export default function FishingMapScreen() {
               key={spot.id}
               coordinate={spot.coordinates}
               title={spot.name}
-              description={`${spot.fishTypes.join(', ')} - ${spot.bestTime}`}
+              description={spot.fishSpecies.length > 0 ? spot.fishSpecies.map(f => f.commonName).join(', ') : 'Loading fish species...'}
               onPress={() => handleMarkerPress(spot)}
             />
           ))}
@@ -193,7 +208,9 @@ export default function FishingMapScreen() {
           <View style={styles.mapSpotCard}>
             <Text style={styles.mapSpotName}>{selectedSpot.name}</Text>
             <Text style={styles.mapSpotDistance}>{selectedSpot.distance} miles away</Text>
-            <Text style={styles.mapSpotFish}>Fish: {selectedSpot.fishTypes.join(', ')}</Text>
+            <Text style={styles.mapSpotFish}>
+              Fish: {isLoadingFish ? 'Loading...' : selectedSpot.fishSpecies.length > 0 ? selectedSpot.fishSpecies.map(f => f.commonName).join(', ') : 'No fish data available'}
+            </Text>
             <Text style={styles.mapSpotTime}>Best Time: {selectedSpot.bestTime}</Text>
             <TouchableOpacity 
               style={styles.mapDirectionsButton}
@@ -289,11 +306,13 @@ export default function FishingMapScreen() {
               </View>
               
               <View style={styles.fishTypesList}>
-                {spot.fishTypes.map((fish, index) => (
+                {spot.fishSpecies.length > 0 ? spot.fishSpecies.map((fish, index) => (
                   <View key={index} style={styles.fishTypeTag}>
-                    <Text style={styles.fishTypeText}>{fish}</Text>
+                    <Text style={styles.fishTypeText}>{fish.commonName}</Text>
                   </View>
-                ))}
+                )) : (
+                  <Text style={styles.noFishText}>Fish data not loaded</Text>
+                )}
               </View>
               
               <Text style={styles.spotTime}>Best Time: {spot.bestTime}</Text>
@@ -342,7 +361,7 @@ export default function FishingMapScreen() {
                 key={spot.id}
                 coordinate={spot.coordinates}
                 title={spot.name}
-                description={`${spot.fishTypes.join(', ')} - ${spot.bestTime}`}
+                description={spot.fishSpecies.length > 0 ? spot.fishSpecies.map(f => f.commonName).join(', ') : 'Loading fish species...'}
                 onPress={() => handleMarkerPress(spot)}
               />
             ))}
@@ -352,7 +371,9 @@ export default function FishingMapScreen() {
             <View style={styles.fullScreenSpotCard}>
               <Text style={styles.fullScreenSpotName}>{selectedSpot.name}</Text>
               <Text style={styles.fullScreenSpotDistance}>{selectedSpot.distance} miles away</Text>
-              <Text style={styles.fullScreenSpotFish}>Fish: {selectedSpot.fishTypes.join(', ')}</Text>
+              <Text style={styles.fullScreenSpotFish}>
+                Fish: {isLoadingFish ? 'Loading...' : selectedSpot.fishSpecies.length > 0 ? selectedSpot.fishSpecies.map(f => f.commonName).join(', ') : 'No fish data available'}
+              </Text>
               <Text style={styles.fullScreenSpotTime}>Best Time: {selectedSpot.bestTime}</Text>
               <TouchableOpacity 
                 style={styles.fullScreenDirectionsButton}
@@ -583,6 +604,11 @@ const styles = StyleSheet.create({
   fishTypeText: {
     fontSize: 12,
     color: Colors.text,
+  },
+  noFishText: {
+    fontSize: 12,
+    color: Colors.textLight,
+    fontStyle: 'italic',
   },
   directionsButton: {
     backgroundColor: Colors.primary,

@@ -34,7 +34,8 @@ export default function SettingsScreen() {
   };
   
   const handleAbout = () => {
-    router.push('/about');
+    // TODO: Implement about screen
+    // router.push('/about');
   };
   
   return (

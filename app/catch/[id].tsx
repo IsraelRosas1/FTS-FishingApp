@@ -12,6 +12,7 @@ import ImprovementTips from '@/components/ImprovementTips';
 
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/src/firebaseConfig";
+import { uploadImage, generateImagePath } from "@/utils/firebaseStorage";
 
 export default function CatchDetailScreen() {
   const { id, showShare, temp } = useLocalSearchParams<{ 
@@ -94,27 +95,53 @@ export default function CatchDetailScreen() {
     setIsEditing(false);
   };
   
-  const handleSaveToCatchbook = () => {
+  const handleSaveToCatchbook = async () => {
     if (Platform.OS !== 'web') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
     
-    addCatch(catchItem);
-    removeTempCatch(id);
+    if (!user) {
+      Alert.alert('Error', 'You must be logged in to save catches');
+      return;
+    }
     
-    Alert.alert(
-      "Saved to Catchbook!",
-      "This fish has been saved to your catchbook. You can view it in your profile.",
-      [
-        {
-          text: "View Profile",
-          onPress: () => router.push('/profile')
-        },
-        {
-          text: "OK"
-        }
-      ]
-    );
+    try {
+      let imageUrl = catchItem.imageUri;
+      
+      // Upload image to Firebase Storage if it's a local URI
+      if (catchItem.imageUri && !catchItem.imageUri.startsWith('http')) {
+        const fileName = `catch_${Date.now()}.jpg`;
+        const path = generateImagePath(user.id, 'catch', fileName);
+        imageUrl = await uploadImage(catchItem.imageUri, path);
+      }
+      
+      const catchToSave = {
+        ...catchItem,
+        userId: user.id,
+        imageUri: imageUrl,
+        createdAt: new Date().toISOString(),
+      };
+      
+      addCatch(catchToSave);
+      removeTempCatch(id);
+      
+      Alert.alert(
+        "Saved to Catchbook!",
+        "This fish has been saved to your catchbook. You can view it in your profile.",
+        [
+          {
+            text: "View Profile",
+            onPress: () => router.push('/profile')
+          },
+          {
+            text: "OK"
+          }
+        ]
+      );
+    } catch (error) {
+      console.error('Error saving catch:', error);
+      Alert.alert('Error', 'Failed to save catch. Please try again.');
+    }
   };
   
   const handleDelete = () => {
@@ -136,7 +163,12 @@ export default function CatchDetailScreen() {
             if (isTemporary) {
               removeTempCatch(id);
             } else {
-              deleteCatch(id);
+              if (user?.id) {
+                deleteCatch(id, user.id);
+              } else {
+                Alert.alert('Error', 'You must be logged in to delete catches');
+                return;
+              }
             }
             router.replace('/history');
           },
@@ -168,36 +200,62 @@ export default function CatchDetailScreen() {
     setShowShareOptions(true);
   };
   
-  const handleSharePost = () => {
+  const handleSharePost = async () => {
     if (!user || !caption) return;
     
-    // If it's temporary, save it first
-    if (isTemporary) {
-      addCatch(catchItem);
-      removeTempCatch(id);
+    try {
+      // If it's temporary, save it first
+      if (isTemporary) {
+        let imageUrl = catchItem.imageUri;
+        
+        // Upload image to Firebase Storage if it's a local URI
+        if (catchItem.imageUri && !catchItem.imageUri.startsWith('http')) {
+          const fileName = `catch_${Date.now()}.jpg`;
+          const path = generateImagePath(user.id, 'catch', fileName);
+          imageUrl = await uploadImage(catchItem.imageUri, path);
+        }
+        
+        const catchToSave = {
+          ...catchItem,
+          userId: user.id,
+          imageUri: imageUrl,
+          createdAt: new Date().toISOString(),
+        };
+        
+        addCatch(catchToSave);
+        removeTempCatch(id);
+      }
+      
+      // Use the uploaded URL or existing URL for the post
+      const postImageUrl = catchItem.imageUri.startsWith('http') ? catchItem.imageUri : 
+        (isTemporary ? await uploadImage(catchItem.imageUri, generateImagePath(user.id, 'post', `post_${Date.now()}.jpg`)) : catchItem.imageUri);
+      
+      createPost({
+        userId: user.id,
+        userDisplayName: user.displayName,
+        userProfileImage: user.profileImageUrl,
+        catchId: catchItem.id,
+        content: caption,
+        imageUrl: postImageUrl,
+        createdAt: new Date().toISOString(),
+      });
+      
+      if (Platform.OS !== 'web') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+      
+      Alert.alert(
+        "Shared Successfully",
+        "Your catch has been shared to your profile",
+        [{ text: "OK" }]
+      );
+      
+      setShowShareOptions(false);
+      setCaption('');
+    } catch (error) {
+      console.error('Error sharing post:', error);
+      Alert.alert('Error', 'Failed to share post. Please try again.');
     }
-    
-    createPost(
-      user.id,
-      user.displayName,
-      user.profileImageUrl,
-      catchItem.id,
-      caption,
-      catchItem.imageUri
-    );
-    
-    if (Platform.OS !== 'web') {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    }
-    
-    Alert.alert(
-      "Shared Successfully",
-      "Your catch has been shared to your profile",
-      [{ text: "OK" }]
-    );
-    
-    setShowShareOptions(false);
-    setCaption('');
   };
   
   const formatDate = (dateString: string) => {

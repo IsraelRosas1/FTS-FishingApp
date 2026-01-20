@@ -1,5 +1,7 @@
 import { Platform } from 'react-native';
 import { useTempCatchStore } from '@/store/tempCatchStore';
+import { extractVideoFrames } from './videoFrameExtraction';
+import * as FileSystem from 'expo-file-system/legacy';
 
 type ContentPart = 
   | { type: 'text'; text: string; }
@@ -133,13 +135,25 @@ export async function analyzeFishInVideoFrame(imageBase64: string): Promise<{
 
     const data = await response.json();
     
+    console.log('AI frame analysis response:', data.completion);
+    
     try {
-      const result = JSON.parse(data.completion);
+      // Remove markdown code block markers if present
+      let jsonString = data.completion.trim();
+      if (jsonString.startsWith('```json')) {
+        jsonString = jsonString.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      } else if (jsonString.startsWith('```')) {
+        jsonString = jsonString.replace(/```\n?/g, '').trim();
+      }
+      
+      const result = JSON.parse(jsonString);
+      console.log('Parsed frame result:', result);
       return {
         name: result.name || 'Analyzing...',
         confidence: result.confidence || 0,
       };
     } catch (e) {
+      console.log('Failed to parse frame response, raw text:', data.completion);
       return {
         name: 'Analyzing...',
         confidence: 0,
@@ -192,4 +206,108 @@ Scientific Name: ${fishData.scientificName}`,
   useTempCatchStore.getState().addTempCatch(tempCatch);
   
   return tempCatch;
+}
+
+/**
+ * Analyze video frames to detect fish species
+ * Aggregates results from multiple frames to determine the most confident detection
+ */
+export async function analyzeFishInVideo(
+  videoUri: string,
+  onProgress?: (progress: number, currentFrame: number, totalFrames: number) => void
+): Promise<{
+  name: string;
+  scientificName: string;
+  description: string;
+  habitat: string;
+  confidence: number;
+  improvementTips?: string[];
+} | null> {
+  try {
+    console.log('Starting video fish detection...');
+    
+    // Extract frames from video
+    const { frameUris, success, error } = await extractVideoFrames(videoUri, 5);
+    
+    if (!success || frameUris.length === 0) {
+      console.error('Failed to extract frames:', error);
+      return null;
+    }
+    
+    console.log(`Extracted ${frameUris.length} frames from video`);
+    
+    // Analyze each frame
+    const detections: Array<{ name: string; confidence: number }> = [];
+    
+    for (let i = 0; i < frameUris.length; i++) {
+      if (onProgress) {
+        onProgress(((i + 1) / frameUris.length) * 100, i + 1, frameUris.length);
+      }
+      
+      try {
+        // Convert frame to base64
+        const base64 = await FileSystem.readAsStringAsync(frameUris[i], {
+          encoding: 'base64',
+        });
+        
+        // Analyze this frame
+        const detection = await analyzeFishInVideoFrame(base64);
+        
+        if (detection.confidence > 30) { // Only consider detections with >30% confidence
+          detections.push(detection);
+          console.log(`Frame ${i + 1}: ${detection.name} (${detection.confidence}%)`);
+        }
+      } catch (frameError) {
+        console.warn(`Failed to analyze frame ${i}:`, frameError);
+      }
+    }
+    
+    if (detections.length === 0) {
+      console.log('No fish detected in video frames');
+      return null;
+    }
+    
+    // Aggregate results - find the most common fish with highest average confidence
+    const fishCounts = new Map<string, { count: number; totalConfidence: number }>();
+    
+    detections.forEach(({ name, confidence }) => {
+      if (!fishCounts.has(name)) {
+        fishCounts.set(name, { count: 0, totalConfidence: 0 });
+      }
+      const current = fishCounts.get(name)!;
+      current.count++;
+      current.totalConfidence += confidence;
+    });
+    
+    // Find the fish with highest score (count * average confidence)
+    let bestFish = { name: '', score: 0, avgConfidence: 0 };
+    
+    fishCounts.forEach(({ count, totalConfidence }, name) => {
+      const avgConfidence = totalConfidence / count;
+      const score = count * avgConfidence;
+      
+      if (score > bestFish.score) {
+        bestFish = { name, score, avgConfidence };
+      }
+    });
+    
+    console.log(`Best detection: ${bestFish.name} with confidence ${bestFish.avgConfidence.toFixed(1)}%`);
+    
+    // Get full details for the detected fish
+    // Use the first frame for detailed analysis
+    const base64 = await FileSystem.readAsStringAsync(frameUris[0], {
+      encoding: 'base64',
+    });
+    
+    const fullDetails = await recognizeFish(base64);
+    
+    return {
+      ...fullDetails,
+      confidence: Math.round(bestFish.avgConfidence),
+    };
+    
+  } catch (error) {
+    console.error('Error analyzing fish in video:', error);
+    return null;
+  }
 }

@@ -1,37 +1,71 @@
-import React, { useState } from 'react';
-import { StyleSheet, View, Text, Image, TouchableOpacity } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { StyleSheet, View, Text, Image, TouchableOpacity, Modal, Dimensions, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { formatDistanceToNow } from 'date-fns';
-import { Heart, MessageCircle, Share2 } from 'lucide-react-native';
+import { Heart, MessageCircle, Share2, Trash2, MapPin, Package, Play, Pause, X, Maximize2 } from 'lucide-react-native';
+import { VideoView, useVideoPlayer } from 'expo-video';
 import Colors from '@/constants/colors';
 import { Post } from '@/types/user';
 import { useSocialStore } from '@/store/socialStore';
 import { useAuthStore } from '@/store/authStore';
 
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+
 interface PostCardProps {
   post: Post;
   showComments?: boolean;
+  allowDelete?: boolean;
 }
 
-export default function PostCard({ post, showComments = false }: PostCardProps) {
+export default function PostCard({ post, showComments = false, allowDelete = true }: PostCardProps) {
   const router = useRouter();
-  const [isLiked, setIsLiked] = useState(post.isLiked || false);
-  const { likePost, unlikePost } = useSocialStore();
+  const { likePost, unlikePost, deletePost } = useSocialStore();
   const user = useAuthStore((state) => state.user);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  
+  // Create video players for main and fullscreen videos
+  const videoPlayer = post.videoUrl ? useVideoPlayer(post.videoUrl, (player) => {
+    player.loop = true;
+    player.muted = false;
+  }) : null;
+  
+  const fullscreenVideoPlayer = post.videoUrl ? useVideoPlayer(post.videoUrl, (player) => {
+    player.loop = true;
+    player.muted = false;
+  }) : null;
   
   const formattedDate = formatDistanceToNow(new Date(post.createdAt), { addSuffix: true });
   
   const handleLike = () => {
-    if (isLiked) {
-      unlikePost(post.id);
+    if (!user?.id) return;
+    
+    if (post.isLiked) {
+      unlikePost(post.id, user.id);
     } else {
-      likePost(post.id);
+      likePost(post.id, user.id);
     }
-    setIsLiked(!isLiked);
   };
   
   const handleCommentPress = () => {
     router.push(`/post/${post.id}`);
+  };
+  
+  const handleDelete = () => {
+    Alert.alert(
+      'Delete Post',
+      'Are you sure you want to delete this post? This action cannot be undone.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => deletePost(post.id)
+        }
+      ]
+    );
   };
   
   const handleProfilePress = () => {
@@ -39,6 +73,40 @@ export default function PostCard({ post, showComments = false }: PostCardProps) 
       router.push('/profile');
     } else {
       router.push(`/user/${post.userId}`);
+    }
+  };
+
+  const handleVideoPress = () => {
+    if (!videoPlayer) return;
+    
+    if (videoPlayer.playing) {
+      videoPlayer.pause();
+    } else {
+      videoPlayer.play();
+    }
+  };
+
+  const handleFullscreenOpen = () => {
+    if (videoPlayer) {
+      videoPlayer.pause();
+    }
+    setIsFullscreen(true);
+  };
+
+  const handleFullscreenClose = () => {
+    if (fullscreenVideoPlayer) {
+      fullscreenVideoPlayer.pause();
+    }
+    setIsFullscreen(false);
+  };
+
+  const handleFullscreenVideoPress = () => {
+    if (!fullscreenVideoPlayer) return;
+    
+    if (fullscreenVideoPlayer.playing) {
+      fullscreenVideoPlayer.pause();
+    } else {
+      fullscreenVideoPlayer.play();
     }
   };
   
@@ -57,23 +125,86 @@ export default function PostCard({ post, showComments = false }: PostCardProps) 
             <Text style={styles.postTime}>{formattedDate}</Text>
           </View>
         </TouchableOpacity>
+        {allowDelete && post.userId === user?.id && (
+          <TouchableOpacity onPress={handleDelete} style={styles.deleteButton}>
+            <Trash2 size={20} color={Colors.error} />
+          </TouchableOpacity>
+        )}
       </View>
       
-      <Image 
-        source={{ uri: post.imageUrl }} 
-        style={styles.postImage}
-        resizeMode="cover"
-      />
+      {post.imageUrl && (
+        <Image 
+          source={{ uri: post.imageUrl }} 
+          style={styles.postImage}
+          resizeMode="cover"
+        />
+      )}
+      
+      {post.videoUrl && videoPlayer && (
+        <View style={styles.videoContainer}>
+          <VideoView
+            player={videoPlayer}
+            style={styles.video}
+            nativeControls={false}
+            contentFit="contain"
+          />
+          <TouchableOpacity 
+            style={styles.videoPlayButton} 
+            onPress={handleVideoPress}
+          >
+            {videoPlayer.playing ? (
+              <Pause size={40} color={Colors.card} />
+            ) : (
+              <Play size={40} color={Colors.card} />
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.videoExpandButton} 
+            onPress={handleFullscreenOpen}
+          >
+            <Maximize2 size={24} color={Colors.card} />
+          </TouchableOpacity>
+        </View>
+      )}
       
       <View style={styles.content}>
+        {post.fishDetected && post.fishDetected.length > 0 && (
+          <View style={styles.fishDetectedBanner}>
+            <View style={styles.fishDetectedInfo}>
+              <Text style={styles.fishSpeciesName}>
+                {post.fishDetected[0].species}
+              </Text>
+
+            </View>
+          </View>
+        )}
+        
         <Text style={styles.caption}>{post.caption}</Text>
+        
+        {post.lure && (
+          <View style={styles.lureContainer}>
+            <Package size={16} color={Colors.primary} />
+            <Text style={styles.lureText}>
+              {post.lure.name} • {post.lure.type} • {post.lure.color}
+            </Text>
+          </View>
+        )}
+        
+        {post.location && (
+          <View style={styles.locationContainer}>
+            <MapPin size={16} color={Colors.textLight} />
+            <Text style={styles.locationText}>
+              {post.location.latitude.toFixed(4)}, {post.location.longitude.toFixed(4)}
+            </Text>
+          </View>
+        )}
         
         <View style={styles.statsRow}>
           <View style={styles.stat}>
             <Heart 
               size={18} 
-              color={isLiked ? Colors.error : Colors.textLight} 
-              fill={isLiked ? Colors.error : 'transparent'}
+              color={post.isLiked ? Colors.error : Colors.textLight} 
+              fill={post.isLiked ? Colors.error : 'transparent'}
             />
             <Text style={styles.statText}>{post.likes}</Text>
           </View>
@@ -86,16 +217,16 @@ export default function PostCard({ post, showComments = false }: PostCardProps) 
         
         <View style={styles.actionsRow}>
           <TouchableOpacity 
-            style={[styles.actionButton, isLiked && styles.likedButton]} 
+            style={[styles.actionButton, post.isLiked && styles.likedButton]} 
             onPress={handleLike}
           >
             <Heart 
               size={20} 
-              color={isLiked ? Colors.card : Colors.textLight} 
-              fill={isLiked ? Colors.card : 'transparent'}
+              color={post.isLiked ? Colors.card : Colors.textLight} 
+              fill={post.isLiked ? Colors.card : 'transparent'}
             />
-            <Text style={[styles.actionText, isLiked && styles.likedText]}>
-              {isLiked ? 'Liked' : 'Like'}
+            <Text style={[styles.actionText, post.isLiked && styles.likedText]}>
+              {post.isLiked ? 'Liked' : 'Like'}
             </Text>
           </TouchableOpacity>
           
@@ -113,6 +244,43 @@ export default function PostCard({ post, showComments = false }: PostCardProps) 
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Fullscreen Video Modal */}
+      {fullscreenVideoPlayer && (
+        <Modal
+          visible={isFullscreen}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={handleFullscreenClose}
+        >
+          <View style={styles.fullscreenContainer}>
+            <TouchableOpacity 
+              style={styles.fullscreenCloseButton} 
+              onPress={handleFullscreenClose}
+            >
+              <X size={30} color={Colors.text} />
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.fullscreenVideoWrapper}
+              onPress={handleFullscreenVideoPress}
+              activeOpacity={1}
+            >
+              <VideoView
+                player={fullscreenVideoPlayer}
+                style={styles.fullscreenVideo}
+                nativeControls={false}
+                contentFit="contain"
+              />
+              {!fullscreenVideoPlayer.playing && (
+                <View style={styles.fullscreenPlayButton}>
+                  <Play size={60} color={Colors.card} />
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
+        </Modal>
+      )}
     </View>
   );
 }
@@ -134,6 +302,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 12,
+  },
+  deleteButton: {
+    padding: 8,
   },
   userInfo: {
     flexDirection: 'row',
@@ -158,13 +329,128 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 300,
   },
+  videoContainer: {
+    width: '100%',
+    height: 300,
+    backgroundColor: '#000',
+    position: 'relative',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  video: {
+    width: '100%',
+    height: '100%',
+  },
+  videoPlayButton: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: [{ translateX: -30 }, { translateY: -30 }],
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  videoExpandButton: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  videoPlaceholder: {
+    width: '100%',
+    height: 200,
+    backgroundColor: Colors.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  videoText: {
+    fontSize: 16,
+    color: Colors.textLight,
+    fontWeight: '500',
+  },
   content: {
     padding: 16,
+  },
+  fishDetectedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(42, 157, 244, 0.15)',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: Colors.primary,
+  },
+  fishIcon: {
+    fontSize: 32,
+    marginRight: 12,
+  },
+  fishDetectedInfo: {
+    flex: 1,
+  },
+  fishSpeciesName: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.primary,
+    marginBottom: 2,
+  },
+  fishConfidence: {
+    fontSize: 13,
+    color: Colors.text,
+    fontWeight: '500',
   },
   caption: {
     fontSize: 16,
     color: Colors.text,
-    marginBottom: 16,
+    marginBottom: 12,
+  },
+  fishDetectedContainer: {
+    backgroundColor: Colors.background,
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  fishDetectedTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: 4,
+  },
+  fishDetectedText: {
+    fontSize: 13,
+    color: Colors.primary,
+    marginLeft: 8,
+  },
+  lureContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.background,
+    padding: 8,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  lureText: {
+    fontSize: 13,
+    color: Colors.text,
+    marginLeft: 8,
+  },
+  locationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  locationText: {
+    fontSize: 12,
+    color: Colors.textLight,
+    marginLeft: 4,
   },
   statsRow: {
     flexDirection: 'row',
@@ -205,5 +491,42 @@ const styles = StyleSheet.create({
   },
   likedText: {
     color: Colors.card,
+  },
+  fullscreenContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullscreenCloseButton: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    zIndex: 10,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullscreenVideoWrapper: {
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullscreenVideo: {
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT,
+  },
+  fullscreenPlayButton: {
+    position: 'absolute',
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

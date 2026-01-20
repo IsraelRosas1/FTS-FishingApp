@@ -8,8 +8,8 @@ export default function SignInScreen() {
   const router = useRouter();
   const { signIn, isLoading, error, isAuthenticated } = useAuthStore();
   
-  const [email, setEmail] = useState('demo@fishfinder.com');
-  const [password, setPassword] = useState('password123');
+  const [email, setEmail] = useState('holly@gmail.com');
+  const [password, setPassword] = useState('Password');
   
   useEffect(() => {
     if (isAuthenticated) {
