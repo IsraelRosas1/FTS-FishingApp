@@ -86,7 +86,7 @@ export default function FeedScreen() {
           onPress={() => setFeedMode('competitive')}
         >
           <Trophy size={20} color={feedMode === 'competitive' ? Colors.card : Colors.textLight} />
-          <Text style={[styles.toggleText, feedMode === 'competitive' && styles.activeToggleText]}>Leaderboard</Text>
+          <Text style={[styles.toggleText, feedMode === 'competitive' && styles.activeToggleText]}>Leagues</Text>
         </TouchableOpacity>
       </View>
       

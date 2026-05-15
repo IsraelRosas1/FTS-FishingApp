@@ -1,0 +1,17 @@
+change Leaderboard to leagues
+
+amateur- state
+semipro-state competition
+
+pro-nationwide
+
+-once you submit a registration form for leages, and when user signs up where does it go?
+-under social profile:
+
+-state
+-body of water: river, dam
+-data birth
+-region(county)
+-email
+-phone(optional)
+

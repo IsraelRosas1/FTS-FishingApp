@@ -3,12 +3,14 @@ import { StyleSheet, View, Text, TouchableOpacity, ScrollView, Alert } from 'rea
 import { useRouter } from 'expo-router';
 import { User, Users, Users2, Heart } from 'lucide-react-native';
 import Colors from '@/constants/colors';
+import { useAuthStore } from '@/store/authStore';
 
 type TeamType = 'solo' | 'duo' | 'quad' | 'family';
 
 export default function TeamSelectionScreen() {
   const router = useRouter();
   const [selectedTeamType, setSelectedTeamType] = useState<TeamType | null>(null);
+  const user = useAuthStore((state) => state.user);
 
   const teamTypes = [
     {
@@ -51,9 +53,29 @@ export default function TeamSelectionScreen() {
       return;
     }
 
+    if (!user) {
+      Alert.alert('Sign In Required', 'Please sign in to register for leagues', [
+        {
+          text: 'Sign In',
+          onPress: () => router.push('/(auth)/signin')
+        }
+      ]);
+      return;
+    }
+
+    const teamTitle = teamTypes.find((t) => t.id === selectedTeamType)?.title ?? 'team';
+
+    if (!user.anglerQuestionnaireCompleted) {
+      router.push({
+        pathname: '/leagues/angler-questionnaire',
+        params: { teamTitle }
+      });
+      return;
+    }
+
     Alert.alert(
       'Registration Complete!',
-      `You have successfully registered for the Amateur League as a ${teamTypes.find(t => t.id === selectedTeamType)?.title}. Good luck!`,
+      `You have successfully registered for the Amateur League as a ${teamTitle}. Good luck!`,
       [
         {
           text: 'Back to Feed',

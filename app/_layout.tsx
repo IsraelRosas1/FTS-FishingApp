@@ -8,8 +8,7 @@ import Colors from "@/constants/colors";
 
 import { db } from "@/src/firebaseConfig";
 import { useRouter, useSegments } from "expo-router";
-import { useAuthStore } from "@/store/authStore"; // Ensure this path is correct
-
+import { useAuthStore } from "@/store/authStore"; 
 export const unstable_settings = {
   initialRouteName: "(auth)",
 };

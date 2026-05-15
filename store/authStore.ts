@@ -77,6 +77,7 @@ export const useAuthStore = create<AuthState>()(
             followers: 0,
             following: 0,
             createdAt: new Date().toISOString(),
+            anglerQuestionnaireCompleted: false,
           };
 
           // 2. Save User Profile to Firestore

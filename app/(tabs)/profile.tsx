@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, View, FlatList, Text, TouchableOpacity, Animated, ScrollView, Image, Dimensions } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Plus, Play } from 'lucide-react-native';
+import * as VideoThumbnails from 'expo-video-thumbnails';
 import { useAuthStore } from '@/store/authStore';
 import { useSocialStore } from '@/store/socialStore';
 import { useCatchStore } from '@/store/catchStore';
@@ -28,6 +29,7 @@ export default function ProfileScreen() {
   const [activeTab, setActiveTab] = useState<'posts' | 'catchbook'>('posts');
   const [showTopBar, setShowTopBar] = useState(false);
   const scrollY = useRef(new Animated.Value(0)).current;
+  const [videoThumbs, setVideoThumbs] = useState<Record<string, string>>({});
   
   const loadOtherUserProfile = async (userId: string) => {
     try {
@@ -75,6 +77,28 @@ export default function ProfileScreen() {
       loadCatches(profileUser.id);
     }
   }, [currentUser?.id, profileUser?.id]);
+
+  // Generate thumbnails for video posts (cached in component state)
+  useEffect(() => {
+    let cancelled = false;
+    async function generateThumbs() {
+      const vids = posts.filter(p => p.userId === profileUser?.id && p.videoUrl && !videoThumbs[p.id]);
+      // limit concurrent generation to avoid spikes
+      for (const post of vids.slice(0, 30)) {
+        if (cancelled) return;
+        try {
+          const { uri } = await VideoThumbnails.getThumbnailAsync(post.videoUrl as string, { time: 1000 });
+          if (uri && !cancelled) {
+            setVideoThumbs(prev => ({ ...prev, [post.id]: uri }));
+          }
+        } catch (e) {
+          console.warn('Thumbnail generation failed for', post.id, e);
+        }
+      }
+    }
+    generateThumbs();
+    return () => { cancelled = true; };
+  }, [posts, profileUser?.id]);
   
   if (!isAuthenticated) {
     return (
@@ -134,13 +158,25 @@ export default function ProfileScreen() {
           >
             {post.videoUrl ? (
               <>
-                <Image
-                  source={{ uri: post.videoUrl }}
-                  style={styles.gridImage}
-                  resizeMode="cover"
-                />
+                {videoThumbs[post.id] ? (
+                  <Image
+                    source={{ uri: videoThumbs[post.id] }}
+                    style={styles.gridImage}
+                    resizeMode="cover"
+                  />
+                ) : post.imageUrl ? (
+                  <Image
+                    source={{ uri: post.imageUrl }}
+                    style={styles.gridImage}
+                    resizeMode="cover"
+                  />
+                  ) : (
+                  <View style={[styles.gridPlaceholder, { backgroundColor: Colors.card }] }>
+                    <Play size={28} color={Colors.background} />
+                  </View>
+                )}
                 <View style={styles.videoIndicator}>
-                  <Play size={24} color={Colors.card} fill={Colors.card} />
+                  <Play size={20} color={Colors.card} fill={Colors.card} />
                 </View>
               </>
             ) : post.imageUrl ? (

@@ -8,6 +8,15 @@ export interface User {
   followers: number;
   following: number;
   createdAt: string;
+  anglerQuestionnaireCompleted?: boolean;
+  anglerQuestionnaire?: {
+    state: string;
+    bodyOfWater: string;
+    dateOfBirth: string;
+    region: string;
+    email: string;
+    phone?: string;
+  };
 }
 
 export interface Post {

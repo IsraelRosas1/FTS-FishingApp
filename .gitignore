@@ -39,3 +39,11 @@ yarn-error.*
 # General env files
 .env
 .env.*
+
+#firebase.rules
+# Firebase - ignore secrets & local state
+.firebase/
+firebase-debug.log
+serviceAccount*.json
+*.service-account.json
+functions/.runtimeconfig.json

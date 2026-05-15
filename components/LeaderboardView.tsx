@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { StyleSheet, View, Text, FlatList, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Trophy, Users, Calendar } from 'lucide-react-native';
+import { Users } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 
 export default function LeaderboardView() {
@@ -51,10 +51,6 @@ export default function LeaderboardView() {
     router.push('/leagues/register');
   };
 
-  const handleHostTournament = () => {
-    router.push('/leagues/host-tournament');
-  };
-
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       
@@ -71,19 +67,6 @@ export default function LeaderboardView() {
             onPress={handleJoinLeagues}
           >
             <Text style={styles.leagueButtonText}>Join</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.leagueOption}>
-          <View style={styles.leagueOptionContent}>
-            <Calendar size={20} color={Colors.primary} />
-            <Text style={styles.leagueOptionText}>Looking to host a tournament</Text>
-          </View>
-          <TouchableOpacity 
-            style={styles.leagueButton}
-            onPress={handleHostTournament}
-          >
-            <Text style={styles.leagueButtonText}>Sign Up</Text>
           </TouchableOpacity>
         </View>
       </View>
